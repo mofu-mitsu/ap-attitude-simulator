@@ -1,0 +1,6 @@
+{
+  "name": "AP Simulator",
+  "description": "対人関係をシミュレートするAP（Attitudinal Psyche）診断アプリ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

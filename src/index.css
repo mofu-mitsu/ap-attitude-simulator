@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .glass {
+    @apply bg-white/50 backdrop-blur-md border border-white/60 shadow-xl;
+  }
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-xl border border-white/60 shadow-lg;
+  }
+}
+
+@layer base {
+  body {
+    @apply text-slate-800;
+    background-color: #fcf8fa;
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+}
+
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes liquid-slow {
+  0% { transform: translate(0px, 0px) scale(1) rotate(0deg); }
+  33% { transform: translate(20px, -30px) scale(1.1) rotate(45deg); }
+  66% { transform: translate(-15px, 25px) scale(0.95) rotate(-15deg); }
+  100% { transform: translate(0px, 0px) scale(1) rotate(0deg); }
+}
+
+@keyframes drop {
+  0% { transform: translateY(0px) scaleY(1); }
+  50% { transform: translateY(15px) scaleY(1.1); }
+  100% { transform: translateY(0px) scaleY(1); }
+}
+
+@keyframes roll {
+  0% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-15px) rotate(90deg); }
+  50% { transform: translateY(0) rotate(180deg); }
+  75% { transform: translateY(-5px) rotate(270deg); }
+  100% { transform: translateY(0) rotate(360deg); }
+}
+
+@keyframes float-roll {
+  0% { transform: translateY(0px) rotate(0deg) translateX(0px); }
+  50% { transform: translateY(-20px) rotate(180deg) translateX(10px); }
+  100% { transform: translateY(0px) rotate(360deg) translateX(0px); }
+}
+
+.animate-blob {
+  animation: blob 10s infinite alternate;
+}
+.animate-liquid-1 {
+  animation: liquid-slow 20s infinite alternate ease-in-out;
+}
+.animate-liquid-2 {
+  animation: liquid-slow 25s infinite alternate-reverse ease-in-out;
+}
+.animate-liquid-3 {
+  animation: liquid-slow 22s infinite alternate ease-in-out;
+}
+.animate-liquid-4 {
+  animation: liquid-slow 28s infinite alternate-reverse ease-in-out;
+}
+.animate-drop {
+  animation: drop 6s infinite ease-in-out;
+}
+.animate-float-roll {
+  animation: float-roll 8s ease-in-out infinite;
+}
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

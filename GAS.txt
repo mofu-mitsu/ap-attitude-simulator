@@ -1,0 +1,30 @@
+function doPost(e) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const data = JSON.parse(e.postData.contents);
+    
+    // 自認、結果、サブタイプ詳細、スコア、ログ
+    sheet.appendRow([
+      new Date(),
+      data.resultType || '',
+      data.subtype || '',
+      JSON.stringify(data.alphabetSubtypes || {}),
+      JSON.stringify(data.scores || {}),
+      JSON.stringify(data.logs || [])
+    ]);
+    
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// 1. Google Driveで新規スプレッドシートを作成
+// 2. 「拡張機能」 > 「Apps Script」を開く
+// 3. このコードを貼り付けて保存
+// 4. 「デプロイ」 > 「新しいデプロイ」
+// 5. 種類の選択で「ウェブアプリ」を選択
+// 6. アクセスできるユーザーを「全員」にしてデプロイ
+// 7. 発行されたURLを src/App.tsx の GAS_URL に設定してください
