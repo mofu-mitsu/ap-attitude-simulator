@@ -114,7 +114,7 @@ export const scenario: ScenarioStep[] = [
     id: 'slider-bug',
     messages: [
       { id: 'm5', sender: '🐛', text: 'ほう。', delay: 1500 },
-      { id: 'm6', sender: '🐛', text: 'では、具体的に君の「合理性」の重心はどこにある？', delay: 1500 },
+      { id: 'm6_1', sender: '🐛', text: 'では、具体的に君の「合理性」の重心はどこにある？', delay: 1500 },
     ],
     inputType: 'slider-bug'
   },
@@ -197,6 +197,26 @@ export const scenario: ScenarioStep[] = [
     ]
   },
   {
+    id: 'insecure-check',
+    messages: [
+      { id: 'm_insec2', sender: 'system', text: 'Q. あなたが他人に指摘されて、最も「不安」または「不快」に感じる（あるいは過敏に反応してしまう）のはどれですか？', delay: 2000 }
+    ],
+    inputType: 'choice',
+    options: [
+      { label: '自分の「考え方」や「論理」の矛盾を指摘されること', scores: { third: { l: 3 } } },
+      { label: '自分の「決断」や「目標」を否定されたり、強要されること', scores: { third: { v: 3 } } },
+      { label: '自分の「趣味」や「感情表現」を笑われたり、おかしいと言われること', scores: { third: { e: 3 } } },
+      { label: '自分の「服装」や「生活習慣」「外見」を注意されること', scores: { third: { f: 3 } } }
+    ]
+  },
+  {
+    id: 'world-end',
+    messages: [
+      { id: 'm_we2', sender: 'system', text: 'Q. もし明日、世界が終わるとしたらあなたはどう思いますか？ 自由に書いてください。', delay: 2000 }
+    ],
+    inputType: 'text'
+  },
+  {
     id: 'dice-event',
     messages: [
       { id: 'm_dice1', sender: 'system', text: '突然、目の前にサイコロが現れた。', delay: 1500 },
@@ -239,6 +259,7 @@ export const scenario: ScenarioStep[] = [
   {
     id: 'incoming-call-event',
     messages: [
+      { id: 'm_ic1', sender: 'system', text: '【ミッション】友達からの電話に出てください。', delay: 1500 }
     ],
     inputType: 'incoming-call'
   },

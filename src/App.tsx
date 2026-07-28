@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { scenario } from './data/scenario';
+import { subtypeQuestions } from './data/subtypeQuestions';
 import { MessageData } from './types';
 import MarbleBackground from './components/MarbleBackground';
 import ChatBubble from './components/ChatBubble';
@@ -28,6 +29,9 @@ export default function App() {
     third: { v: 0, l: 0, e: 0, f: 0 },
     fourth: { v: 0, l: 0, e: 0, f: 0 }
   });
+  const [dynamicSteps, setDynamicSteps] = useState<any[]>([]);
+  const [subtypeScores, setSubtypeScores] = useState<number[]>([0,0,0,0]);
+  const [baseTypeString, setBaseTypeString] = useState<string>('');
   const [showResult, setShowResult] = useState(false);
   const [builtAvatar, setBuiltAvatar] = useState('');
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
@@ -38,9 +42,13 @@ export default function App() {
     if (started && currentStep?.id === 'exit') {
       const timer = setTimeout(() => {
         setStarted(false);
+          setIsStarting(false);
         setCurrentStepIndex(0);
         setMessages([]);
         setHistoryStack([]);
+          setDynamicSteps([]);
+          setSubtypeScores([0,0,0,0]);
+          setBaseTypeString("");
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -108,7 +116,8 @@ export default function App() {
     ]);
   };
 
-  const handleAnswer = (addScores: any, text: string, metadata?: any, advanceStep: boolean = true) => {
+  const activeScenario = [...scenario, ...dynamicSteps];
+  const handleAnswer = (addScores: any, text: string, metadata?: any, advanceStep: boolean = true, nextId?: string) => {
     if (advanceStep && processingRef.current) return;
     if (advanceStep) {
       processingRef.current = true;
@@ -116,6 +125,9 @@ export default function App() {
         currentStepIndex,
         messages: [...messages],
         scores: JSON.parse(JSON.stringify(scores)),
+        subtypeScores: [...subtypeScores],
+        dynamicSteps: [...dynamicSteps],
+        baseTypeString,
         builtAvatar
       }]);
     }
@@ -130,41 +142,83 @@ export default function App() {
     }
     
     // スコア加算
-    if (addScores) {
+    if (addScores && !addScores.subtypeScore) {
       setScores(prev => ({
         first: {
-          v: prev.first.v + (addScores.first?.v || 0),
-          l: prev.first.l + (addScores.first?.l || 0),
-          e: prev.first.e + (addScores.first?.e || 0),
-          f: prev.first.f + (addScores.first?.f || 0),
+          v: (prev?.first?.v || 0) + (addScores.first?.v || 0),
+          l: (prev?.first?.l || 0) + (addScores.first?.l || 0),
+          e: (prev?.first?.e || 0) + (addScores.first?.e || 0),
+          f: (prev?.first?.f || 0) + (addScores.first?.f || 0),
         },
         second: {
-          v: prev.second.v + (addScores.second?.v || 0),
-          l: prev.second.l + (addScores.second?.l || 0),
-          e: prev.second.e + (addScores.second?.e || 0),
-          f: prev.second.f + (addScores.second?.f || 0),
+          v: (prev?.second?.v || 0) + (addScores.second?.v || 0),
+          l: (prev?.second?.l || 0) + (addScores.second?.l || 0),
+          e: (prev?.second?.e || 0) + (addScores.second?.e || 0),
+          f: (prev?.second?.f || 0) + (addScores.second?.f || 0),
         },
         third: {
-          v: prev.third.v + (addScores.third?.v || 0),
-          l: prev.third.l + (addScores.third?.l || 0),
-          e: prev.third.e + (addScores.third?.e || 0),
-          f: prev.third.f + (addScores.third?.f || 0),
+          v: (prev?.third?.v || 0) + (addScores.third?.v || 0),
+          l: (prev?.third?.l || 0) + (addScores.third?.l || 0),
+          e: (prev?.third?.e || 0) + (addScores.third?.e || 0),
+          f: (prev?.third?.f || 0) + (addScores.third?.f || 0),
         },
         fourth: {
-          v: prev.fourth.v + (addScores.fourth?.v || 0),
-          l: prev.fourth.l + (addScores.fourth?.l || 0),
-          e: prev.fourth.e + (addScores.fourth?.e || 0),
-          f: prev.fourth.f + (addScores.fourth?.f || 0),
+          v: (prev?.fourth?.v || 0) + (addScores.fourth?.v || 0),
+          l: (prev?.fourth?.l || 0) + (addScores.fourth?.l || 0),
+          e: (prev?.fourth?.e || 0) + (addScores.fourth?.e || 0),
+          f: (prev?.fourth?.f || 0) + (addScores.fourth?.f || 0),
         }
       }));
+    } else if (addScores && addScores.subtypeScore) {
+      setSubtypeScores(prev => {
+        const next = [...prev];
+        next[addScores.subtypeScore.index] = addScores.subtypeScore.score;
+        return next;
+      });
     }
 
     // 次のステップへ
     if (advanceStep) {
-      if (currentStepIndex < scenario.length - 1) {
+      if (nextId === 'exit') {
+        setTimeout(() => {
+          setStarted(false);
+          setIsStarting(false);
+          setCurrentStepIndex(0);
+          setMessages([]);
+          setHistoryStack([]);
+        }, 1500);
+        return;
+      }
+      if (currentStepIndex < activeScenario.length - 1) {
         setCurrentStepIndex(prev => prev + 1);
       } else {
-        setTimeout(() => setShowResult(true), 1500);
+        if (dynamicSteps.length === 0) {
+          // Generate subtype questions
+          const base = getBaseType(scores);
+          setBaseTypeString(base);
+          const funcs = base.split('');
+          const newSteps = funcs.map((func, index) => {
+            const pos = index + 1;
+            const qData = subtypeQuestions[func][pos];
+            return {
+              id: `subtype_${func}_${pos}`,
+              messages: [
+                { id: `m_sub_${func}_1`, sender: 'system', text: `【追加診断: ${pos}${func}の強さ】`, delay: 1000 },
+                { id: `m_sub_${func}_2`, sender: 'system', text: qData.q, delay: 1500 }
+              ],
+              inputType: 'choice',
+              options: qData.options.map((opt: any) => ({
+                label: opt.label,
+                scores: { subtypeScore: { index, score: opt.score } }
+              }))
+            };
+          });
+          setDynamicSteps(newSteps);
+          setCurrentStepIndex(prev => prev + 1);
+        } else {
+          // Finished subtype questions
+          setTimeout(() => setShowResult(true), 1500);
+        }
       }
     }
   };
@@ -175,21 +229,22 @@ export default function App() {
   };
 
   const postToGAS = (result: any) => {
-    // Note: Replace with actual deployed GAS Web App URL
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzE5M2r3Hon3o4HB4bd3VQeNDwR9y2laiO1pw-cui5z8A9XmfHI8YakZiRKcv5C6-jm/exec';
     if (GAS_URL.includes('DUMMY')) return;
     
+    const payload = JSON.stringify({
+      resultType: result.type,
+      subtype: result.subtype,
+      alphabetSubtypes: result.alphabetSubtypes,
+      scores: scores,
+      logs: messages.map(m => ({ sender: m.sender, text: m.text }))
+    });
+
     fetch(GAS_URL, {
       method: 'POST',
       mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        resultType: result.type,
-        subtype: result.subtype,
-        alphabetSubtypes: result.alphabetSubtypes,
-        scores: scores,
-        logs: messages.map(m => ({ sender: m.sender, text: m.text }))
-      })
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ data: payload })
     }).catch(e => console.error(e));
   };
 
@@ -197,7 +252,7 @@ export default function App() {
     const getTop = (scoresObj: Record<string, number>, exclude: string[]) => {
       let max = -1;
       let top = '';
-      for (const [k, v] of Object.entries(scoresObj)) {
+      for (const [k, v] of Object.entries(scoresObj || {})) {
         if (!exclude.includes(k) && v > max) {
           max = v;
           top = k;
@@ -210,43 +265,31 @@ export default function App() {
       }
       return top;
     };
-    const f1 = getTop(scores.first, []);
-    const f2 = getTop(scores.second, [f1]);
-    const f3 = getTop(scores.third, [f1, f2]);
-    const f4 = getTop(scores.fourth, [f1, f2, f3]);
+    const f1 = getTop(scores?.first || {}, []);
+    const f2 = getTop(scores?.second || {}, [f1]);
+    const f3 = getTop(scores?.third || {}, [f1, f2]);
+    const f4 = getTop(scores?.fourth || {}, [f1, f2, f3]);
     
-    const s1 = (scores.first.v||0) + (scores.first.l||0) + (scores.first.e||0) + (scores.first.f||0);
-    const s2 = (scores.second.v||0) + (scores.second.l||0) + (scores.second.e||0) + (scores.second.f||0);
-    const s3 = (scores.third.v||0) + (scores.third.l||0) + (scores.third.e||0) + (scores.third.f||0);
-    const s4 = (scores.fourth.v||0) + (scores.fourth.l||0) + (scores.fourth.e||0) + (scores.fourth.f||0);
-    
-    let subtype = 0;
-    let maxSum = -1;
-    const sums = [s1, s2, s3, s4];
-    
-    if (s1 === s2 && s2 === s3 && s3 === s4) {
-      subtype = 0;
-    } else {
-      sums.forEach((val, idx) => {
-        if (val > maxSum) {
-          maxSum = val;
-          subtype = idx + 1;
-        }
-      });
+    const type = baseTypeString || `${f1.toUpperCase()}${f2.toUpperCase()}${f3.toUpperCase()}${f4.toUpperCase()}`;
+
+    const maxScore = Math.max(...(subtypeScores || [0,0,0,0]));
+    let subtype = 1;
+    if (maxScore > 0 && subtypeScores) {
+      subtype = subtypeScores.indexOf(maxScore) + 1;
     }
 
     const funcs = ['v', 'l', 'f', 'e'];
     const alphabetSubtypes: Record<string, any> = {};
     for (const f of funcs) {
       const funcScores = [
-        scores.first[f] || 0,
-        scores.second[f] || 0,
-        scores.third[f] || 0,
-        scores.fourth[f] || 0
+        scores?.first?.[f] || 0,
+        scores?.second?.[f] || 0,
+        scores?.third?.[f] || 0,
+        scores?.fourth?.[f] || 0
       ];
       const total = funcScores.reduce((a, b) => a + b, 0);
-      const maxScore = Math.max(...funcScores);
-      const topIndex = funcScores.indexOf(maxScore);
+      const maxFuncScore = Math.max(...funcScores);
+      const topIndex = funcScores.indexOf(maxFuncScore);
       const percentages = total > 0 ? funcScores.map(s => Math.round((s / total) * 100)) : [0,0,0,0];
       
       alphabetSubtypes[f] = {
@@ -255,8 +298,19 @@ export default function App() {
         rawScores: funcScores
       };
     }
-
-    return { type: `${f1.toUpperCase()}${f2.toUpperCase()}${f3.toUpperCase()}${f4.toUpperCase()}`, subtype, alphabetSubtypes };
+    const positionPercentages: Record<string, any> = {};
+    const posKeys = ['first', 'second', 'third', 'fourth'];
+    posKeys.forEach(pos => {
+      const funcScores = [
+        scores?.[pos]?.v || 0,
+        scores?.[pos]?.l || 0,
+        scores?.[pos]?.f || 0,
+        scores?.[pos]?.e || 0
+      ];
+      const total = funcScores.reduce((a, b) => a + b, 0);
+      positionPercentages[pos] = total > 0 ? funcScores.map(s => Math.round((s / total) * 100)) : [0,0,0,0];
+    });
+    return { type, subtype, alphabetSubtypes, positionPercentages };
   };
 
   const copyResult = () => {
@@ -346,6 +400,31 @@ export default function App() {
     }, 1500);
   };
 
+
+  const getBaseType = (currentScores: any) => {
+    const getTop = (scoresObj: any, exclude: string[]) => {
+      let max = -1;
+      let top = '';
+      for (const [k, v] of Object.entries(scoresObj || {})) {
+        if (!exclude.includes(k) && (v as number) > max) {
+          max = (v as number);
+          top = k;
+        }
+      }
+      if (max === -1 || !top) {
+        for (const k of ['v', 'l', 'e', 'f']) {
+          if (!exclude.includes(k)) return k;
+        }
+      }
+      return top;
+    };
+    const f1 = getTop(currentScores.first, []);
+    const f2 = getTop(currentScores.second, [f1]);
+    const f3 = getTop(currentScores.third, [f1, f2]);
+    const f4 = getTop(currentScores.fourth, [f1, f2, f3]);
+    return `${f1.toUpperCase()}${f2.toUpperCase()}${f3.toUpperCase()}${f4.toUpperCase()}`;
+  };
+
   const handleUndo = () => {
     if (historyStack.length === 0) return;
     const last = historyStack[historyStack.length - 1];
@@ -353,6 +432,9 @@ export default function App() {
     setCurrentStepIndex(last.currentStepIndex);
     setMessages(last.messages);
     setScores(last.scores);
+    if (last.subtypeScores) setSubtypeScores(last.subtypeScores);
+    if (last.dynamicSteps) setDynamicSteps(last.dynamicSteps);
+    if (last.baseTypeString) setBaseTypeString(last.baseTypeString);
     if (last.builtAvatar !== undefined) {
       setBuiltAvatar(last.builtAvatar);
     }
@@ -411,9 +493,9 @@ export default function App() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
               transition={{ duration: 0.8 }}
-              className="glass-panel p-8 rounded-[2rem] max-w-sm w-full text-center border-2 border-white/80 relative overflow-hidden bg-white/60 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/40 before:to-transparent before:mix-blend-overlay shadow-[0_8px_32px_rgba(255,192,203,0.2)]"
+              className="glass-panel p-8 rounded-[2rem] max-w-sm w-full text-center border-2 border-white/80 relative overflow-hidden bg-white/60 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/40 before:to-transparent before:mix-blend-overlay before:pointer-events-none shadow-[0_8px_32px_rgba(255,192,203,0.2)]"
             >
-              <button onClick={handleReset} className="absolute top-4 left-4 text-slate-400 hover:text-pink-500 transition-colors text-xs font-bold bg-white/50 px-2 py-1 rounded-full"><i className="fa-solid fa-rotate-right"></i></button>
+              <button onClick={handleReset} className="absolute top-4 left-4 text-slate-400 z-10 hover:text-pink-500 transition-colors text-xs font-bold bg-white/50 px-2 py-1 rounded-full"><i className="fa-solid fa-rotate-right"></i></button>
               {/* 通知バッジ */}
               <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm text-xs font-bold text-slate-600 flex items-center gap-2 border border-white">
                 🐛 1件の未読
@@ -426,6 +508,7 @@ export default function App() {
                 <div className="absolute -inset-2 bg-gradient-to-r from-pink-300 to-blue-300 rounded-full mix-blend-multiply blur-xl opacity-50 -z-10 animate-pulse"></div>
               </h1>
               <p className="text-slate-500 mb-4 font-bold text-sm tracking-widest">ATTITUDE LAB</p>
+              <a href="https://mofu-mitsu.github.io/lab.html" className="inline-flex items-center relative z-10 gap-1 text-xs font-bold text-slate-400 hover:text-blue-500 transition-colors mb-4"><i className="fa-solid fa-flask"></i> labへ戻る</a>
               
               <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-4 mb-6 text-left border border-white text-xs text-slate-700 leading-relaxed shadow-inner">
                 <p className="font-bold mb-1 text-pink-500">📖 AP（Attitudinal Psyche）とは？</p>
@@ -440,7 +523,7 @@ export default function App() {
                 </ul>
               </div>
 
-              <div className="mb-6 text-left">
+              <div className="mb-6 text-left relative z-10">
                 <label className="block text-xs font-bold text-slate-500 mb-1 pl-2">あなたの自認タイプ（任意）</label>
                 <input 
                   type="text" 
@@ -454,7 +537,7 @@ export default function App() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={handleStart}
-                className="w-full relative group overflow-hidden bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 text-white py-4 rounded-full font-bold shadow-[0_4px_15px_rgba(0,0,0,0.1)] transition-all text-lg"
+                className="w-full relative z-10 group overflow-hidden bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 text-white py-4 rounded-full font-bold shadow-[0_4px_15px_rgba(0,0,0,0.1)] transition-all text-lg"
               >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
                 <span className="relative z-10 flex items-center justify-center gap-2">
@@ -562,30 +645,29 @@ export default function App() {
             </div>
 
             <div className="mt-4 flex flex-col gap-3 text-left">
-              <h3 className="font-bold text-slate-700 text-sm border-b pb-1 mb-1">各機能の態度の濃さ（サブタイプ）</h3>
+              <h3 className="font-bold text-slate-700 text-sm border-b pb-1 mb-1">各順位での機能の強さ</h3>
               
-              {['l', 'v', 'f', 'e'].map((func) => {
-                const data = calculateResult().alphabetSubtypes[func];
+              {['first', 'second', 'third', 'fourth'].map((pos, idx) => {
+                const data = calculateResult().positionPercentages[pos];
                 if (!data) return null;
-                const toSuperscript = (num) => {
-                  const map = { '1': '¹', '2': '²', '3': '³', '4': '⁴' };
-                  return map[num.toString()] || num;
-                };
+                const funcs = ['V', 'L', 'F', 'E'];
+                const titles = ['1st Function', '2nd Function', '3rd Function', '4th Function'];
+                const subtitles = ['Confident', 'Flexible', 'Insecure', 'Unbothered'];
                 return (
-                  <div key={func} className="bg-white/60 p-3 rounded-xl border border-white">
+                  <div key={pos} className="bg-white/60 p-3 rounded-xl border border-white">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="font-black text-slate-700 text-lg">{func.toUpperCase()}<span className="text-pink-500">{toSuperscript(data.topAttitude)}</span></span>
-                      <span className="text-xs font-bold text-slate-500">最も強い態度: {data.topAttitude}{func.toUpperCase()} ({data.percentages[data.topAttitude - 1]}%)</span>
+                      <span className="font-black text-slate-700 text-lg">{titles[idx]}</span>
+                      <span className="text-xs font-bold text-slate-500">{subtitles[idx]}</span>
                     </div>
                     
                     <div className="flex flex-col gap-1.5">
-                      {[1, 2, 3, 4].map(att => {
-                        const pct = data.percentages[att - 1];
+                      {funcs.map((func, i) => {
+                        const pct = data[i];
                         return (
-                          <div key={att} className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                            <span className="w-4">{att}</span>
+                          <div key={func} className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                            <span className="w-4">{func}</span>
                             <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
-                              <div className="bg-pink-400 h-full rounded-full" style={{ width: `${pct}%` }}></div>
+                              <div className="bg-blue-400 h-full rounded-full" style={{ width: `${pct}%` }}></div>
                             </div>
                             <span className="w-8 text-right">{pct}%</span>
                           </div>
@@ -629,6 +711,14 @@ export default function App() {
 
           {/* アクションボタン（画像には含まれない） */}
           <div className="flex flex-col gap-3 w-full mt-2">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowExplanationDialog(true)}
+              className="w-full glass py-4 rounded-full font-bold text-slate-700 shadow-sm border-2 border-white flex items-center justify-center mb-4 hover:bg-white/50"
+            >
+              <i className="fa-solid fa-book-open mr-2 text-blue-500"></i>
+              各機能の詳しい解説を見る
+            </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={handleSaveImage}
@@ -739,15 +829,13 @@ export default function App() {
   </div>
 )}
 
-<div className="w-full max-w-md shadow-2xl bg-white/80 backdrop-blur-xl border-x border-white/50 relative flex flex-col overflow-hidden">
+<div className="w-full max-w-md shadow-2xl bg-white/80 backdrop-blur-xl border-x border-white/50 relative flex flex-col min-h-screen">
 <header className="glass-panel px-4 py-3 sticky top-0 z-20 flex justify-between items-center border-b border-white/60">
   <div className="flex flex-col">
     <span className="font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500 tracking-wide text-lg leading-tight">
       AP Simulator
     </span>
-    <a href="https://mofu-mitsu.github.io/lab.html" className="text-[10px] font-bold text-slate-400 hover:text-blue-500 flex items-center gap-1">
-      <i className="fa-solid fa-flask"></i> labへ戻る
-    </a>
+    
   </div>
   <div className="flex gap-3 text-slate-400 text-lg items-center">
     {historyStack.length > 0 && (
@@ -771,7 +859,7 @@ export default function App() {
 </header>
 
         {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 hide-scrollbar relative">
+        <div className="flex-1 px-4 py-6 relative">
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
               <ChatBubble key={msg.id} message={msg} />

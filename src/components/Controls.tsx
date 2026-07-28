@@ -6,7 +6,7 @@ import { audio } from '../utils/audio';
 interface ControlsProps {
   key?: string;
   step: ScenarioStep;
-  onAnswer: (scores: any, text: string, metadata?: any, advanceStep?: boolean) => void;
+  onAnswer: (scores: any, text: string, metadata?: any, advanceStep?: boolean, nextId?: string) => void;
   onAddDarlingMessage: (text: string) => void;
   builtAvatar?: string;
 }
@@ -79,22 +79,7 @@ export default function Controls({ step, onAnswer, onAddDarlingMessage, builtAva
   }, [step.inputType, obsPhase]);
 
   
-  useEffect(() => {
-    if (step.inputType === 'incoming-call' && callState === 'ringing') {
-      // 60秒待機（勝手に切れないようにゆったり）
-      const timer = setTimeout(() => {
-        setCallState('declined');
-        onAnswer({}, '[電話に出なかった]', undefined, false);
-        setTimeout(() => {
-          onAddDarlingMessage('『…電話に出ないんだ？ ふーん…』');
-          setTimeout(() => {
-            onAnswer({ fourth: { e: 2 } }, '', undefined, true);
-          }, 2000);
-        }, 1000);
-      }, 60000);
-      return () => clearTimeout(timer);
-    }
-  }, [step.inputType, callState]);
+
 
   // Reset state on step change
   useEffect(() => {
@@ -197,7 +182,7 @@ export default function Controls({ step, onAnswer, onAddDarlingMessage, builtAva
     // 自主的表現
     if (textInput.match(/(行く|やる|決める|したい|自分)/)) v += 2;
     
-    onAnswer({ v, l, e, f }, textInput);
+    onAnswer({ first: { v, l, e, f } }, textInput);
   };
 
   const handleCheckboxToggle = (idx: number) => {
@@ -259,7 +244,7 @@ export default function Controls({ step, onAnswer, onAddDarlingMessage, builtAva
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => onAnswer(opt.scores, opt.metadata?.isStamp ? opt.metadata.stampText : opt.label, opt.metadata)}
+              onClick={() => onAnswer(opt.scores, opt.metadata?.isStamp ? opt.metadata.stampText : opt.label, opt.metadata, true, opt.next)}
               className="glass-panel py-3 px-4 rounded-full text-center text-[15px] font-bold text-slate-700 hover:bg-white/80 transition-colors shadow-[0_4px_15px_rgba(0,0,0,0.05)] border-2 border-white"
             >
               {opt.label}
@@ -705,6 +690,7 @@ export default function Controls({ step, onAnswer, onAddDarlingMessage, builtAva
           clearInterval(interval);
           const finalVal = Math.floor(Math.random() * 6) + 1;
           setDiceValue(finalVal);
+          setDiceRolling(false);
           setTimeout(() => {
             let scoresToAdd = { v: 0, l: 0, e: 0, f: 0 };
             if (finalVal === 1) scoresToAdd.v = 2;
@@ -714,7 +700,7 @@ export default function Controls({ step, onAnswer, onAddDarlingMessage, builtAva
             else if (finalVal === 5) { scoresToAdd.v = 1; scoresToAdd.f = 1; }
             else { scoresToAdd.l = 1; scoresToAdd.e = 1; }
             onAnswer({ fourth: scoresToAdd }, `[サイコロを振った: ${finalVal}]`, undefined, true);
-          }, 1000);
+          }, 1500);
         }
       }, 100);
     };
