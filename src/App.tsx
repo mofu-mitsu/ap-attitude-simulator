@@ -67,6 +67,13 @@ export default function App() {
     scrollToBottom();
   }, [messages, isTyping]);
 
+  // 結果画面に移行したらトップへスクロール
+  useEffect(() => {
+    if (showResult) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [showResult]);
+
   useEffect(() => {
     if (started && currentStep && !showResult) {
       processStepMessages();
@@ -364,17 +371,15 @@ export default function App() {
     });
   };
 
-    const handleReset = () => {
-    if (confirm('最初からやり直しますか？')) {
-      localStorage.clear();
-      window.location.reload();
-    }
+  const handleReset = () => {
+    localStorage.clear();
+    window.location.reload();
   };
 
   const handleSaveImage = async () => {
     if (resultRef.current) {
       try {
-        const dataUrl = await toPng(resultRef.current, { backgroundColor: '#ffffff' });
+        const dataUrl = await toPng(resultRef.current, { backgroundColor: '#ffffff', skipFonts: true });
         
         // スマホ判定 (簡易的)
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -596,7 +601,34 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-        
+
+        {/* 解説ダイアログ */}
+        {showExplanationDialog && (
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="glass-panel p-6 rounded-3xl text-left max-w-md w-full border border-white max-h-[80vh] overflow-y-auto">
+              <h3 className="text-xl font-bold text-slate-700 mb-4 border-b pb-2">APとサブタイプについて</h3>
+              <div className="text-sm text-slate-600 space-y-4 font-medium mb-6">
+                <p><strong>Attitudinal Psyche (AP)</strong>とは、人が様々な側面（論理、意志、感情、物質）に対してどのような態度を取るかを分析するシステムです。能力ではなく、「態度（スタンス）」に注目します。</p>
+                <hr className="border-slate-200" />
+                <p><strong>Subtype（サブタイプ）とは？</strong></p>
+                <p>同じ「LVFE」でも、人によってどの機能が一番色濃く表れるかは少しずつ異なります。その違いを表したものがサブタイプです。</p>
+                <p>例えば LVFE-3 は、「3F（物理・身体・お金・生活）の特徴が比較的強く表れやすいLVFE」という意味になります。</p>
+                <p>タイプそのもの（LVFE）が変わるわけではありません。あくまで「同じLVFEの中でも、どこが目立ちやすいか」を示しています。</p>
+              </div>
+              <button onClick={() => setShowExplanationDialog(false)} className="w-full bg-slate-800 text-white py-3 rounded-full font-bold">閉じる</button>
+            </div>
+          </div>
+        )}
+
+        {/* 画像保存モーダル */}
+        {generatedImage && (
+          <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-4">
+            <p className="text-white font-bold mb-4 bg-pink-500/80 px-4 py-2 rounded-full shadow-lg">画像を長押しして保存してください</p>
+            <img src={generatedImage} alt="診断結果" className="w-full max-w-sm rounded-[2rem] shadow-2xl border-4 border-white/50" />
+            <button onClick={() => setGeneratedImage(null)} className="mt-8 text-white/70 hover:text-white font-bold px-6 py-2 rounded-full border border-white/30 hover:bg-white/10 transition-colors">閉じる</button>
+          </div>
+        )}
+
         {/* 保存用エリア */}
           <motion.div 
             ref={resultRef}
@@ -659,6 +691,26 @@ export default function App() {
             <div className="text-center font-bold text-slate-700 text-lg mb-4 bg-white/50 py-2 rounded-xl shadow-sm border border-white">
               Subtype: <span className="text-pink-500 tracking-widest">{resultType}-{subtype}</span>
             </div>
+
+            {/* L¹ V¹ F¹ E⁴ 形式のサブタイプ表示 */}
+            {(() => {
+              const toSup = (n: number) => ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'][n] ?? String(n);
+              const as = calculateResult().alphabetSubtypes;
+              return (
+                <div className="flex justify-center gap-3 mb-4 flex-wrap">
+                  {(['L','V','F','E'] as const).map(fn => {
+                    const key = fn.toLowerCase() as 'l'|'v'|'f'|'e';
+                    const d = as[key];
+                    return (
+                      <div key={fn} className="bg-white/70 rounded-xl px-3 py-2 text-center shadow-sm border border-white min-w-[52px]">
+                        <div className="text-xl font-black text-slate-700">{fn}{toSup(d.topAttitude)}</div>
+                        <div className="text-[10px] font-bold text-slate-400">{d.percentages[d.topAttitude-1]}%</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             <div className="mt-4 flex flex-col gap-3 text-left">
               <h3 className="font-bold text-slate-700 text-sm border-b pb-1 mb-1">各順位での機能の強さ</h3>
