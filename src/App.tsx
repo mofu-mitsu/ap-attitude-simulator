@@ -19,7 +19,6 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const currentStep = scenario[currentStepIndex];
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [isProcessingStep, setIsProcessingStep] = useState(false);
@@ -30,6 +29,8 @@ export default function App() {
     fourth: { v: 0, l: 0, e: 0, f: 0 }
   });
   const [dynamicSteps, setDynamicSteps] = useState<any[]>([]);
+  const activeScenario = [...scenario, ...dynamicSteps];
+  const currentStep = activeScenario[currentStepIndex];
   const [subtypeScores, setSubtypeScores] = useState<number[]>([0,0,0,0]);
   const [baseTypeString, setBaseTypeString] = useState<string>('');
   const [showResult, setShowResult] = useState(false);
@@ -116,7 +117,6 @@ export default function App() {
     ]);
   };
 
-  const activeScenario = [...scenario, ...dynamicSteps];
   const handleAnswer = (addScores: any, text: string, metadata?: any, advanceStep: boolean = true, nextId?: string) => {
     if (advanceStep && processingRef.current) return;
     if (advanceStep) {
@@ -190,7 +190,16 @@ export default function App() {
         return;
       }
 
-      // 💡 nextId による特定の別ステップへのジャンプ指定がない場合（＝通常の次の設問進行）
+      // 💡 nextId による特定ステップへのジャンプ
+      if (nextId) {
+        const targetIndex = activeScenario.findIndex(s => s.id === nextId);
+        if (targetIndex !== -1) {
+          setCurrentStepIndex(targetIndex);
+        }
+        return;
+      }
+
+      // 通常の次の設問進行
       if (!nextId) {
         // メインシナリオの最後まで到達し、まだサブタイプ問題が生成されていない場合
         if (currentStepIndex >= scenario.length - 1 && dynamicSteps.length === 0) {
