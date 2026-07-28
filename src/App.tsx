@@ -483,39 +483,26 @@ export default function App() {
     audio.toggleMute(false);
     setIsMuted(false);
     setIsStarting(true);
-    
-    // 蝶々のような紙吹雪を飛ばす
-    const duration = 2000;
-    const end = Date.now() + duration;
-    
-    (function frame() {
-      confetti({
-        particleCount: 2,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: ['#ffb7b2', '#e2f0cb', '#b5ead7', '#c7ceea'],
-        shapes: ['circle'],
-        scalar: 1.5
-      });
-      confetti({
-        particleCount: 2,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: ['#ffb7b2', '#e2f0cb', '#b5ead7', '#c7ceea'],
-        shapes: ['circle'],
-        scalar: 1.5
-      });
-    
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    }());
+
+    const isMobileDevice = navigator.maxTouchPoints > 0;
+
+    if (!isMobileDevice) {
+      // PCのみ紙吹雪アニメーション
+      const duration = 2000;
+      const end = Date.now() + duration;
+      (function frame() {
+        confetti({ particleCount: 2, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#ffb7b2', '#e2f0cb', '#b5ead7', '#c7ceea'], shapes: ['circle'], scalar: 1.5 });
+        confetti({ particleCount: 2, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#ffb7b2', '#e2f0cb', '#b5ead7', '#c7ceea'], shapes: ['circle'], scalar: 1.5 });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      }());
+    } else {
+      // モバイルは軽量な一発だけ
+      confetti({ particleCount: 30, spread: 70, origin: { y: 0.6 }, colors: ['#ffb7b2', '#e2f0cb', '#b5ead7', '#c7ceea'] });
+    }
 
     setTimeout(() => {
       setStarted(true);
-    }, 1500);
+    }, isMobileDevice ? 800 : 1500);
   };
 
   if (!started) {
@@ -637,10 +624,29 @@ export default function App() {
 
         {/* 画像保存モーダル */}
         {generatedImage && (
-          <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-4">
-            <p className="text-white font-bold mb-4 bg-pink-500/80 px-4 py-2 rounded-full shadow-lg">画像を長押しして保存してください</p>
-            <img src={generatedImage} alt="診断結果" className="w-full max-w-sm rounded-[2rem] shadow-2xl border-4 border-white/50" />
-            <button onClick={() => setGeneratedImage(null)} className="mt-8 text-white/70 hover:text-white font-bold px-6 py-2 rounded-full border border-white/30 hover:bg-white/10 transition-colors">閉じる</button>
+          <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex flex-col">
+            {/* 固定ヘッダー */}
+            <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
+              <p className="text-white font-bold text-sm bg-pink-500/80 px-4 py-2 rounded-full shadow-lg">
+                📱 画像を長押しして保存してください
+              </p>
+              <button
+                onClick={() => setGeneratedImage(null)}
+                className="ml-3 flex-shrink-0 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white font-bold flex items-center justify-center text-lg transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            {/* スクロール可能なエリア */}
+            <div className="flex-1 overflow-y-auto py-4 flex flex-col items-center">
+              <img src={generatedImage} alt="診断結果" className="w-full max-w-sm rounded-[2rem] shadow-2xl border-4 border-white/50 mx-4" />
+              <button
+                onClick={() => setGeneratedImage(null)}
+                className="mt-6 mb-8 text-white/70 hover:text-white font-bold px-8 py-3 rounded-full border border-white/30 hover:bg-white/10 transition-colors"
+              >
+                閉じる
+              </button>
+            </div>
           </div>
         )}
 
@@ -649,13 +655,15 @@ export default function App() {
             ref={resultRef}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-panel p-8 rounded-[2rem] w-full text-center border-2 border-white/80 relative overflow-hidden"
+            className="glass-panel p-6 rounded-[2rem] w-full text-center border-2 border-white/80 relative"
           >
-            <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-pink-300/40 rounded-full blur-[30px]"></div>
-            <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-cyan-300/40 rounded-full blur-[30px]"></div>
+            <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-pink-300/40 rounded-full blur-[30px] pointer-events-none"></div>
+            <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-cyan-300/40 rounded-full blur-[30px] pointer-events-none"></div>
 
-            <button onClick={handleReset} className="absolute top-4 right-4 text-slate-400 hover:text-pink-500 transition-colors text-sm font-bold bg-white/50 px-3 py-1.5 rounded-full z-10 shadow-sm border border-white"><i className="fa-solid fa-rotate-right mr-1"></i>RESTART</button>
-            <h2 className="text-sm font-bold tracking-widest mb-2 text-slate-400 uppercase">Your Attitude Type</h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-bold tracking-widest text-slate-400 uppercase">Your Attitude Type</h2>
+              <button onClick={handleReset} className="text-slate-400 hover:text-pink-500 transition-colors text-xs font-bold bg-white/50 px-3 py-1.5 rounded-full shadow-sm border border-white flex-shrink-0"><i className="fa-solid fa-rotate-right mr-1"></i>RESTART</button>
+            </div>
             <div className="text-6xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 tracking-wider drop-shadow-sm">
               {resultType}
             </div>
@@ -739,8 +747,8 @@ export default function App() {
                 return (
                   <div key={pos} className="bg-white/60 p-3 rounded-xl border border-white">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="font-black text-slate-700 text-lg">{titles[idx]}</span>
-                      <span className="text-xs font-bold text-slate-500">{subtitles[idx]}</span>
+                      <span className="font-bold text-slate-700 text-sm">{titles[idx]}</span>
+                      <span className="text-[10px] font-bold text-slate-400">{subtitles[idx]}</span>
                     </div>
                     
                     <div className="flex flex-col gap-1.5">
