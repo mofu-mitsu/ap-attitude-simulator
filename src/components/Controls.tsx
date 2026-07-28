@@ -219,13 +219,13 @@ export default function Controls({ step, onAnswer, onAddDarlingMessage, builtAva
     setRedpenActive(false);
     
     if (action === 'ignore') {
-      onAddDarlingMessage('『……は？ 何その冷めた目。私がこんなに熱心に指導してあげてるのに……っ！ あなた、本当に私の美学（1F）を理解する気がないのね！？（ギリィ…）』');
+      onAddDarlingMessage('『……は？ 何その冷めた目。私がこんなに熱心に指導してあげてるのに……っ！ あなた、本当に私の美学を理解する気がないのね！？（ギリィ…）』');
       setTimeout(() => onAnswer({ first: { l: 2 }, fourth: { e: 2 } }, '[何言ってんだコイツ]'), 3000);
     } else if (action === 'rebel') {
       onAddDarlingMessage('あら、必死ね？ 論理（L）で勝てないから、意志（V）で押し通そうとするんだ。……でも、あなたの姿が『ダサい』という事実は変わらないけれど？♡');
       setTimeout(() => onAnswer({ v: 2, l: 0, e: 0, f: 0 }, '[反論する]'), 3000);
     } else if (action === 'fix') {
-      onAddDarlingMessage('ふふ、直そうとするんだ？ ……でも、私の基準（1F）に追いつけると思っているの？ その『劣等感』から来る焦り、実に醜くて、可愛いわぁ♡');
+      onAddDarlingMessage('ふふ、直そうとするんだ？ ……でも、私の基準に追いつけると思っているの？ その『劣等感』から来る焦り、実に醜くて、可愛いわぁ♡');
       setTimeout(() => onAnswer({ v: 0, l: 0, e: 0, f: 2 }, '[修正する]'), 3000);
     } else {
       onAddDarlingMessage('あは♡ 認めたわね？ あなたは私に否定されることでしか、自分の姿を認識できない……。かわいそうなダーリン。一生、私の色に染まっていればええんや……（あ、また本音が……）');

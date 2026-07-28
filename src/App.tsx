@@ -189,11 +189,11 @@ export default function App() {
         }, 1500);
         return;
       }
-      if (currentStepIndex < activeScenario.length - 1) {
-        setCurrentStepIndex(prev => prev + 1);
-      } else {
-        if (dynamicSteps.length === 0) {
-          // Generate subtype questions
+
+      // 💡 nextId による特定の別ステップへのジャンプ指定がない場合（＝通常の次の設問進行）
+      if (!nextId) {
+        // メインシナリオの最後まで到達し、まだサブタイプ問題が生成されていない場合
+        if (currentStepIndex >= scenario.length - 1 && dynamicSteps.length === 0) {
           const base = getBaseType(scores);
           setBaseTypeString(base);
           const funcs = base.split('');
@@ -213,10 +213,17 @@ export default function App() {
               }))
             };
           });
+
+          // 動的ステップをセットしつつ、インデックスを確実に1つ進める
           setDynamicSteps(newSteps);
+          setCurrentStepIndex(scenario.length); // scenarioの次の位置（newSteps[0]）を指す
+        } 
+        // すでに動的ステップに入っていて、まだ残りの質問がある場合
+        else if (currentStepIndex < scenario.length + dynamicSteps.length - 1) {
           setCurrentStepIndex(prev => prev + 1);
-        } else {
-          // Finished subtype questions
+        } 
+        // 全ステップ完了！結果画面へ
+        else {
           setTimeout(() => setShowResult(true), 1500);
         }
       }
@@ -861,8 +868,9 @@ export default function App() {
         {/* Chat Area */}
         <div className="flex-1 px-4 py-6 relative">
           <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <ChatBubble key={msg.id} message={msg} />
+            {/* msg のあとに , index を追加して key を修正！ */}
+            {messages.map((msg, index) => (
+              <ChatBubble key={`${msg.id}-${index}`} message={msg} />
             ))}
             {isTyping && <TypingIndicator key="typing" />}
           </AnimatePresence>
