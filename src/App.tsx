@@ -240,7 +240,16 @@ export default function App() {
         } 
         // 全ステップ完了！結果画面へ
         else {
-          setTimeout(() => setShowResult(true), 1500);
+          setTimeout(() => {
+            // 💡 1. この時点の最新スコアで結果を計算！
+            const resultData = calculateResult();
+            
+            // 💡 2. GASへ送信！
+            postToGAS(resultData);
+            
+            // 💡 3. 結果画面を表示！
+            setShowResult(true);
+          }, 1500);
         }
       }
     }
@@ -251,24 +260,30 @@ export default function App() {
     setMessages(prev => [...prev, msg]);
   };
 
-  const postToGAS = (result: any) => {
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzE5M2r3Hon3o4HB4bd3VQeNDwR9y2laiO1pw-cui5z8A9XmfHI8YakZiRKcv5C6-jm/exec';
+  const postToGAS = async (result: any) => {
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzHS-qiaZwbdvyH6qjMviOyblZhV1Z-R7JjLVMS797KWVpIdRgCx3TrVhZ9lfxmU2ae/exec';
     if (GAS_URL.includes('DUMMY')) return;
     
-    const payload = JSON.stringify({
+    const payload = {
+      selfType: selfId, // 💡 自認タイプ（selfId）をバッチリ追加！
       resultType: result.type,
       subtype: result.subtype,
       alphabetSubtypes: result.alphabetSubtypes,
       scores: scores,
       logs: messages.map(m => ({ sender: m.sender, text: m.text }))
-    });
+    };
 
-    fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ data: payload })
-    }).catch(e => console.error(e));
+    try {
+      await fetch(GAS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload),
+      });
+      console.log('GASへの送信完了！');
+    } catch (e) {
+      console.error('GAS送信エラー:', e);
+    }
   };
 
   const calculateResult = () => {
