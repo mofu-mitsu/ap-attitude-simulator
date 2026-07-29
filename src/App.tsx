@@ -13,6 +13,7 @@ import { audio } from './utils/audio';
 
 export default function App() {
   const [started, setStarted] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false); // 💡 ロード用の状態を追加！
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [cachedImageUrl, setCachedImageUrl] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -76,11 +77,12 @@ export default function App() {
     }
   }, [showResult]);
 
+  // 💡 ロード中(isConnecting)じゃない時だけメッセージ処理を開始する！
   useEffect(() => {
-    if (started && currentStep && !showResult) {
+    if (started && !isConnecting && currentStep && !showResult) {
       processStepMessages();
     }
-  }, [currentStepIndex, started]);
+  }, [currentStepIndex, started, isConnecting]);
 
   const processStepMessages = async () => {
     processingRef.current = true;
@@ -385,9 +387,8 @@ export default function App() {
     window.location.reload();
   };
 
-  // 💡 共通の画像生成処理（キャッシュ付き！）
   const generateImageData = async () => {
-    if (cachedImageUrl) return cachedImageUrl; // 2回目以降は記憶した画像を返す
+    if (cachedImageUrl) return cachedImageUrl;
     if (!resultRef.current) throw new Error("No ref");
     
     setIsGeneratingImage(true);
@@ -404,7 +405,7 @@ export default function App() {
           transform: 'scale(1)',
         }
       });
-      setCachedImageUrl(dataUrl); // 作った画像を記憶する
+      setCachedImageUrl(dataUrl);
       setToastMessage('');
       setIsGeneratingImage(false);
       return dataUrl;
@@ -416,7 +417,6 @@ export default function App() {
     }
   };
 
-  // 💡 スマホ用：長押しモーダル表示
   const handleShowImageModal = async () => {
     if (isGeneratingImage) return;
     try {
@@ -427,9 +427,16 @@ export default function App() {
     }
   };
 
-  // 💡 PC・ブラウザ用：直接ダウンロード
+  // 💡 スマホの時はダウンロードボタンを押しても長押し保存モーダルを開くように修正！
   const handleDownloadImage = async () => {
     if (isGeneratingImage) return;
+    
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      handleShowImageModal();
+      return;
+    }
+
     try {
       const url = await generateImageData();
       const link = document.createElement('a');
@@ -526,6 +533,10 @@ export default function App() {
 
     setTimeout(() => {
       setStarted(true);
+      setIsConnecting(true); // 💡 ロード開始
+      setTimeout(() => {
+        setIsConnecting(false); // 💡 1.2秒後にロード解除してチャット開始
+      }, 1200);
     }, 600);
   };
 
@@ -566,7 +577,7 @@ export default function App() {
                   <li><strong>V (Volition):</strong> 意志・責任・方向性</li>
                   <li><strong>L (Logic):</strong> 論理・理由・理解</li>
                   <li><strong>E (Emotion):</strong> 感情・表現・関係</li>
-                  <li><strong>F (Physics/Foundation):</strong> 身体・現実・環境</li>
+                  <li><strong>F (Physics / Foundation):</strong> 身体・現実・環境</li> {/* 💡 修正 */}
                 </ul>
               </div>
 
@@ -628,24 +639,23 @@ export default function App() {
         </AnimatePresence>
 
         {showExplanationDialog && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="glass-panel p-6 rounded-3xl text-left max-w-md w-full border border-white max-h-[80vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-slate-700 mb-4 border-b pb-2">
+              <h3 className="text-xl font-bold text-slate-700 mb-4 border-b pb-2">
                 APとサブタイプについて
-            </h3>
+              </h3>
 
-            <div className="text-sm text-slate-600 space-y-4 font-medium mb-6">
-
+              <div className="text-sm text-slate-600 space-y-4 font-medium mb-6">
                 <p>
-                <strong>Attitudinal Psyche（AP）</strong>とは、
-                人が様々な側面に対して「どのような態度を取りやすいか」を分析する類型論です。
+                  <strong>Attitudinal Psyche（AP）</strong>とは、
+                  人が様々な側面に対して「どのような態度を取りやすいか」を分析する類型論です。
                 </p>
 
                 <p>
-                能力や得意・不得意ではなく、
-                「自然と自信を持ちやすい」「人と共有しやすい」
-                「気になりやすい」「あまり意識しない」といった
-                <strong>態度（スタンス）</strong>に注目します。
+                  能力や得意・不得意ではなく、
+                  「自然と自信を持ちやすい」「人と共有しやすい」
+                  「気になりやすい」「あまり意識しない」といった
+                  <strong>態度（スタンス）</strong>に注目します。
                 </p>
 
                 <hr className="border-slate-200" />
@@ -653,10 +663,10 @@ export default function App() {
                 <p><strong>4つの側面</strong></p>
 
                 <ul className="list-disc pl-5 space-y-1">
-                <li><strong>L（Logic）</strong>：論理・知識・分析・考え方</li>
-                <li><strong>V（Volition）</strong>：意志・目標・責任・決断</li>
-                <li><strong>F（Physics / Foundation）</strong>：身体・健康・生活・お金・物・快適さ</li>
-                <li><strong>E（Emotion）</strong>：感情・共感・雰囲気・感情表現</li>
+                  <li><strong>L（Logic）</strong>：論理・知識・分析・考え方</li>
+                  <li><strong>V（Volition）</strong>：意志・目標・責任・決断</li>
+                  <li><strong>F（Physics / Foundation）</strong>：身体・健康・生活・お金・物・快適さ</li>
+                  <li><strong>E（Emotion）</strong>：感情・共感・雰囲気・感情表現</li>
                 </ul>
 
                 <hr className="border-slate-200" />
@@ -664,21 +674,21 @@ export default function App() {
                 <p><strong>4つの態度</strong></p>
 
                 <ul className="list-disc pl-5 space-y-1">
-                <li><strong>1番目</strong>：自信があり、自分の基準を持ちやすい</li>
-                <li><strong>2番目</strong>：柔軟で、人と共有・協力しやすい</li>
-                <li><strong>3番目</strong>：気になりやすく、不安や葛藤を感じやすい</li>
-                <li><strong>4番目</strong>：執着が少なく、自然と他人に任せやすい</li>
+                  <li><strong>1番目</strong>：自信があり、自分の基準を持ちやすい</li>
+                  <li><strong>2番目</strong>：柔軟で、人と共有・協力しやすい</li>
+                  <li><strong>3番目</strong>：気になりやすく、不安や葛藤を感じやすい</li>
+                  <li><strong>4番目</strong>：執着が少なく、自然と他人に任せやすい</li>
                 </ul>
 
                 <p>
-                よく「4番目＝無関心だから気にならない」と説明されますが、
-                APでは<strong>「重要ではないので意識しない」「無意識に避けやすい」</strong>
-                という意味合いも含まれます。
+                  よく「4番目＝無関心だから気にならない」と説明されますが、
+                  APでは<strong>「重要ではないので意識しない」「無意識に避けやすい」</strong>
+                  という意味合いも含まれます。
                 </p>
 
                 <p>
-                そのため、第4機能は「何も感じない」のではなく、
-                深く向き合うこと自体を避けることで自然体を保っている場合があります。
+                  そのため、第4機能は「何も感じない」のではなく、
+                  深く向き合うこと自体を避けることで自然体を保っている場合があります。
                 </p>
 
                 <hr className="border-slate-200" />
@@ -686,41 +696,40 @@ export default function App() {
                 <p><strong>Subtype（サブタイプ）とは？</strong></p>
 
                 <p>
-                同じ「LVFE」でも、
-                人によってどの機能が一番色濃く表れるかは少しずつ異なります。
+                  同じ「LVFE」でも、
+                  人によってどの機能が一番色濃く表れるかは少しずつ異なります。
                 </p>
 
                 <p>
-                その違いを表したものが<strong>サブタイプ</strong>です。
+                  その違いを表したものが<strong>サブタイプ</strong>です。
                 </p>
 
                 <p>
-                例えば
-                <strong>LVFE-3</strong>は、
-                「LVFEの中でも3F（物理）の特徴が特に強く表れやすい」
-                ことを意味します。
+                  例えば
+                  <strong>LVFE-3</strong>は、
+                  「LVFEの中でも3F（物理）の特徴が特に強く表れやすい」
+                  ことを意味します。
                 </p>
 
                 <p>
-                これはタイプ（LVFE）が変わるという意味ではありません。
-                あくまで<strong>同じタイプの中で、どの態度が最も濃く現れているか</strong>を表しています。
+                  これはタイプ（LVFE）が変わるという意味ではありません。
+                  あくまで<strong>同じタイプの中で、どの態度が最も濃く現れているか</strong>を表しています。
                 </p>
 
                 <p>
-                この診断では各機能ごとの回答傾向を分析し、
-                最も強く現れた態度をサブタイプとして表示しています。
+                  この診断では各機能ごとの回答傾向を分析し、
+                  最も強く現れた態度をサブタイプとして表示しています。
                 </p>
+              </div>
 
-            </div>
-
-            <button
+              <button
                 onClick={() => setShowExplanationDialog(false)}
                 className="w-full bg-slate-800 text-white py-3 rounded-full font-bold"
-            >
+              >
                 閉じる
-            </button>
+              </button>
             </div>
-        </div>
+          </div>
         )}
 
         {generatedImage && (
@@ -984,23 +993,93 @@ export default function App() {
 {showExplanationDialog && (
   <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div className="glass-panel p-6 rounded-3xl text-left max-w-md w-full border border-white max-h-[80vh] overflow-y-auto">
-      <h3 className="text-xl font-bold text-slate-700 mb-4 border-b pb-2">APとサブタイプについて</h3>
+      <h3 className="text-xl font-bold text-slate-700 mb-4 border-b pb-2">
+        APとサブタイプについて
+      </h3>
+
       <div className="text-sm text-slate-600 space-y-4 font-medium mb-6">
-        <p><strong>Attitudinal Psyche (AP)</strong>とは、人が様々な側面（論理、意志、感情、物質）に対してどのような態度を取るかを分析するシステムです。能力ではなく、「態度（スタンス）」に注目します。</p>
+        <p>
+          <strong>Attitudinal Psyche（AP）</strong>とは、
+          人が様々な側面に対して「どのような態度を取りやすいか」を分析する類型論です。
+        </p>
+
+        <p>
+          能力や得意・不得意ではなく、
+          「自然と自信を持ちやすい」「人と共有しやすい」
+          「気になりやすい」「あまり意識しない」といった
+          <strong>態度（スタンス）</strong>に注目します。
+        </p>
+
         <hr className="border-slate-200" />
+
+        <p><strong>4つの側面</strong></p>
+
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong>L（Logic）</strong>：論理・知識・分析・考え方</li>
+          <li><strong>V（Volition）</strong>：意志・目標・責任・決断</li>
+          <li><strong>F（Physics / Foundation）</strong>：身体・健康・生活・お金・物・快適さ</li>
+          <li><strong>E（Emotion）</strong>：感情・共感・雰囲気・感情表現</li>
+        </ul>
+
+        <hr className="border-slate-200" />
+
+        <p><strong>4つの態度</strong></p>
+
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong>1番目</strong>：自信があり、自分の基準を持ちやすい</li>
+          <li><strong>2番目</strong>：柔軟で、人と共有・協力しやすい</li>
+          <li><strong>3番目</strong>：気になりやすく、不安や葛藤を感じやすい</li>
+          <li><strong>4番目</strong>：執着が少なく、自然と他人に任せやすい</li>
+        </ul>
+
+        <p>
+          よく「4番目＝無関心だから気にならない」と説明されますが、
+          APでは<strong>「重要ではないので意識しない」「無意識に避けやすい」</strong>
+          という意味合いも含まれます。
+        </p>
+
+        <p>
+          そのため、第4機能は「何も感じない」のではなく、
+          深く向き合うこと自体を避けることで自然体を保っている場合があります。
+        </p>
+
+        <hr className="border-slate-200" />
+
         <p><strong>Subtype（サブタイプ）とは？</strong></p>
-        <p>同じ「LVFE」でも、人によってどの機能が一番色濃く表れるかは少しずつ異なります。その違いを表したものがサブタイプです。</p>
-        <p>例えば LVFE-3 は、「3F（物理・身体・お金・生活）の特徴が比較的強く表れやすいLVFE」という意味になります。</p>
-        <p>タイプそのもの（LVFE）が変わるわけではありません。あくまで「同じLVFEの中でも、どこが目立ちやすいか」を示しています。</p>
-        <hr className="border-slate-200" />
-        <h4 className="font-bold text-slate-700">各サブタイプ</h4>
-        <p><strong>LVFE-1</strong><br/>1Lが特に際立つタイプ。論理・知識・正しさへの自信が強く、自分の考えを軸に世界を見る傾向があります。</p>
-        <p><strong>LVFE-2</strong><br/>2Vが特に際立つタイプ。周囲と相談したり、一緒に方向性を考えたりすることを楽しみます。柔軟に役割を調整するのが得意です。</p>
-        <p><strong>LVFE-3</strong><br/>3Fが特に際立つタイプ。生活・お金・身体・外見などを気にしやすく、「ちゃんとしたい」と思う一方で、不安や面倒さも感じやすいタイプです。</p>
-        <p><strong>LVFE-4</strong><br/>4Eが特に際立つタイプ。感情や場の空気にはあまり執着せず、「人それぞれでいい」というスタンスを取りやすいタイプです。</p>
-        <p><strong>LVFE-V² (例)</strong><br/>同じ機能が2つ重なるような特殊な表記（V²など）は、その機能が「本来の位置以上に極端に強調されている」状態を指すことがあります。たとえば2Vでありながら1Vのような強引さを持っていたり、逆に3Vのような不安定さを併せ持つ場合などに使われる、より詳細なニュアンス表現です。</p>
+
+        <p>
+          同じ「LVFE」でも、
+          人によってどの機能が一番色濃く表れるかは少しずつ異なります。
+        </p>
+
+        <p>
+          その違いを表したものが<strong>サブタイプ</strong>です。
+        </p>
+
+        <p>
+          例えば
+          <strong>LVFE-3</strong>は、
+          「LVFEの中でも3F（物理）の特徴が特に強く表れやすい」
+          ことを意味します。
+        </p>
+
+        <p>
+          これはタイプ（LVFE）が変わるという意味ではありません。
+          あくまで<strong>同じタイプの中で、どの態度が最も濃く現れているか</strong>を表しています。
+        </p>
+
+        <p>
+          この診断では各機能ごとの回答傾向を分析し、
+          最も強く現れた態度をサブタイプとして表示しています。
+        </p>
       </div>
-      <button onClick={() => setShowExplanationDialog(false)} className="w-full bg-slate-800 text-white py-3 rounded-full font-bold">閉じる</button>
+
+      <button
+        onClick={() => setShowExplanationDialog(false)}
+        className="w-full bg-slate-800 text-white py-3 rounded-full font-bold"
+      >
+        閉じる
+      </button>
     </div>
   </div>
 )}
@@ -1043,41 +1122,51 @@ export default function App() {
   </div>
 </header>
 
-        <div className="flex-1 px-4 py-6 relative">
-          <AnimatePresence initial={false}>
-            {messages.map((msg, index) => (
-              <ChatBubble key={`${msg.id}-${index}`} message={msg} />
-            ))}
-            {isTyping && <TypingIndicator key="typing" />}
-          </AnimatePresence>
-          <div ref={messagesEndRef} className="h-4" />
-        </div>
+        {/* 💡 ロード中の画面 */}
+        {isConnecting ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-4">
+            <i className="fa-solid fa-circle-notch fa-spin text-4xl text-pink-400 opacity-80"></i>
+            <p className="font-bold text-sm tracking-widest animate-pulse">システム起動中...</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 px-4 py-6 relative">
+              <AnimatePresence initial={false}>
+                {messages.map((msg, index) => (
+                  <ChatBubble key={`${msg.id}-${index}`} message={msg} />
+                ))}
+                {isTyping && <TypingIndicator key="typing" />}
+              </AnimatePresence>
+              <div ref={messagesEndRef} className="h-4" />
+            </div>
 
-        <div className="p-4 relative z-20 pb-8 bg-gradient-to-t from-white/90 via-white/70 to-transparent pt-8">
-          {isWaitingForInput && currentStep ? (
-            <Controls 
-              key={currentStep.id}
-              step={currentStep} 
-              onAnswer={handleAnswer} 
-              onAddDarlingMessage={handleAddDarlingMessage}
-              builtAvatar={builtAvatar}
-            />
-          ) : currentStep?.id === 'exit' ? (
-              <div className="flex flex-col items-center gap-3 w-full">
-                <button 
-                  onClick={() => { setStarted(false); setCurrentStepIndex(0); setMessages([]); setHistoryStack([]); }}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold shadow-lg text-center hover:opacity-90 transition-opacity animate-bounce"
-                >
-                  <i className="fa-solid fa-house mr-2"></i> タイトル画面へ戻る
-                </button>
-              </div>
-            ) : (
-              <div className="glass py-3 px-5 rounded-full flex items-center text-slate-400 opacity-70 border-white">
-                <i className="fa-regular fa-face-smile mr-3 text-lg"></i>
-                <span className="text-sm font-medium">相手からの返信を待っています...</span>
-              </div>
-            )}
-        </div>
+            <div className="p-4 relative z-20 pb-8 bg-gradient-to-t from-white/90 via-white/70 to-transparent pt-8">
+              {isWaitingForInput && currentStep ? (
+                <Controls 
+                  key={currentStep.id}
+                  step={currentStep} 
+                  onAnswer={handleAnswer} 
+                  onAddDarlingMessage={handleAddDarlingMessage}
+                  builtAvatar={builtAvatar}
+                />
+              ) : currentStep?.id === 'exit' ? (
+                  <div className="flex flex-col items-center gap-3 w-full">
+                    <button 
+                      onClick={() => { setStarted(false); setCurrentStepIndex(0); setMessages([]); setHistoryStack([]); }}
+                      className="w-full py-4 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold shadow-lg text-center hover:opacity-90 transition-opacity animate-bounce"
+                    >
+                      <i className="fa-solid fa-house mr-2"></i> タイトル画面へ戻る
+                    </button>
+                  </div>
+                ) : (
+                  <div className="glass py-3 px-5 rounded-full flex items-center text-slate-400 opacity-70 border-white">
+                    <i className="fa-regular fa-face-smile mr-3 text-lg"></i>
+                    <span className="text-sm font-medium">相手からの返信を待っています...</span>
+                  </div>
+                )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
