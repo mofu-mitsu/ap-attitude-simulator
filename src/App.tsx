@@ -39,25 +39,25 @@ export default function App() {
   const [showExplanationDialog, setShowExplanationDialog] = useState(false);
   const [historyStack, setHistoryStack] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     if (started && currentStep?.id === 'exit') {
       const timer = setTimeout(() => {
         setStarted(false);
-          setIsStarting(false);
+        setIsStarting(false);
         setCurrentStepIndex(0);
         setMessages([]);
         setHistoryStack([]);
-          setDynamicSteps([]);
-          setSubtypeScores([0,0,0,0]);
-          setBaseTypeString("");
+        setDynamicSteps([]);
+        setSubtypeScores([0,0,0,0]);
+        setBaseTypeString("");
       }, 3000);
       return () => clearTimeout(timer);
     }
   }, [currentStep?.id, started]);
+  
   const resultRef = useRef<HTMLDivElement>(null);
   const processingRef = useRef(false);
-  
-
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -67,7 +67,6 @@ export default function App() {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // 結果画面に移行したらトップへスクロール
   useEffect(() => {
     if (showResult) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -85,7 +84,6 @@ export default function App() {
     if (!currentStep) return;
     
     setIsProcessingStep(true);
-    // 現在のステップのメッセージを順番に表示
     for (const msg of currentStep.messages) {
       setIsTyping(true);
       await new Promise(r => setTimeout(r, msg.delay || 1500));
@@ -93,7 +91,6 @@ export default function App() {
       setMessages(prev => [...prev, msg]);
       audio.playMessage();
     }
-    // 少し待ってから入力欄を表示（メッセージを読む時間を確保）
     const lastMsg = currentStep.messages[currentStep.messages.length - 1];
     const readTime = lastMsg ? Math.max(800, lastMsg.text.length * 50 + 500) : 800;
     await new Promise(r => setTimeout(r, readTime));
@@ -103,7 +100,6 @@ export default function App() {
 
   const handlePhoneCall = (target: string) => {
     setShowPhoneDialog(false);
-    
     let text = '';
     let sender: any = 'system';
     
@@ -141,14 +137,12 @@ export default function App() {
     if (metadata?.avatar) {
       setBuiltAvatar(metadata.avatar);
     }
-    // ユーザの回答をメッセージに追加
     if (text) {
       const userMsg: MessageData = { id: Date.now().toString() + Math.random(), sender: 'user', text, metadata };
       setMessages(prev => [...prev, userMsg]);
       audio.playPop();
     }
     
-    // スコア加算
     if (addScores && !addScores.subtypeScore) {
       setScores(prev => ({
         first: {
@@ -184,7 +178,6 @@ export default function App() {
       });
     }
 
-    // 次のステップへ
     if (advanceStep) {
       if (nextId === 'exit') {
         setTimeout(() => {
@@ -197,7 +190,6 @@ export default function App() {
         return;
       }
 
-      // 💡 nextId による特定ステップへのジャンプ
       if (nextId) {
         const targetIndex = activeScenario.findIndex(s => s.id === nextId);
         if (targetIndex !== -1) {
@@ -206,9 +198,7 @@ export default function App() {
         return;
       }
 
-      // 通常の次の設問進行
       if (!nextId) {
-        // メインシナリオの最後まで到達し、まだサブタイプ問題が生成されていない場合
         if (currentStepIndex >= scenario.length - 1 && dynamicSteps.length === 0) {
           const base = getBaseType(scores);
           setBaseTypeString(base);
@@ -230,24 +220,16 @@ export default function App() {
             };
           });
 
-          // 動的ステップをセットしつつ、インデックスを確実に1つ進める
           setDynamicSteps(newSteps);
-          setCurrentStepIndex(scenario.length); // scenarioの次の位置（newSteps[0]）を指す
+          setCurrentStepIndex(scenario.length);
         } 
-        // すでに動的ステップに入っていて、まだ残りの質問がある場合
         else if (currentStepIndex < scenario.length + dynamicSteps.length - 1) {
           setCurrentStepIndex(prev => prev + 1);
         } 
-        // 全ステップ完了！結果画面へ
         else {
           setTimeout(() => {
-            // 💡 1. この時点の最新スコアで結果を計算！
             const resultData = calculateResult();
-            
-            // 💡 2. GASへ送信！
             postToGAS(resultData);
-            
-            // 💡 3. 結果画面を表示！
             setShowResult(true);
           }, 1500);
         }
@@ -265,7 +247,7 @@ export default function App() {
     if (GAS_URL.includes('DUMMY')) return;
     
     const payload = {
-      selfType: selfId, // 💡 自認タイプ（selfId）をバッチリ追加！
+      selfType: selfId,
       resultType: result.type,
       subtype: result.subtype,
       alphabetSubtypes: result.alphabetSubtypes,
@@ -357,13 +339,23 @@ export default function App() {
       const map = { '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '0': '⁰', '.': '.' };
       return num.toString().split('').map(c => map[c] || c).join('');
     };
-    const l = res.alphabetSubtypes.l;
-    const v = res.alphabetSubtypes.v;
-    const f = res.alphabetSubtypes.f;
-    const e = res.alphabetSubtypes.e;
     
-    const attStr = `L${toSuperscript(l.topAttitude)} V${toSuperscript(v.topAttitude)} F${toSuperscript(f.topAttitude)} E${toSuperscript(e.topAttitude)}`;
-    const details = `L${toSuperscript(l.topAttitude)}(max${l.percentages[l.topAttitude - 1]}%)\nV${toSuperscript(v.topAttitude)}(max${v.percentages[v.topAttitude - 1]}%)\nF${toSuperscript(f.topAttitude)}(max${f.percentages[f.topAttitude - 1]}%)\nE${toSuperscript(e.topAttitude)}(max${e.percentages[e.topAttitude - 1]}%)`;
+    // 💡 判定されたタイプの順番通りにサブタイプ文字列を生成
+    const typeArr = res.type.split('');
+    const as = res.alphabetSubtypes;
+    
+    const attStrs = typeArr.map(fn => {
+      const key = fn.toLowerCase();
+      const d = as[key];
+      return `${fn}${toSuperscript(d.topAttitude)}`;
+    });
+    const attStr = attStrs.join(' ');
+
+    const details = typeArr.map(fn => {
+      const key = fn.toLowerCase();
+      const d = as[key];
+      return `${fn}${toSuperscript(d.topAttitude)}(max${d.percentages[d.topAttitude - 1]}%)`;
+    }).join('\n');
 
     const textToCopy = `AP診断結果: ${res.type}\n${attStr}\n\n【詳細】\n${details}\n\n#AP_Simulator`;
     navigator.clipboard.writeText(textToCopy).then(() => {
@@ -394,9 +386,20 @@ export default function App() {
   const handleSaveImage = async () => {
     if (resultRef.current) {
       try {
-        const dataUrl = await toPng(resultRef.current, { backgroundColor: '#ffffff', skipFonts: true });
+        setToastMessage('画像生成中...🎨');
         
-        // スマホ判定 (簡易的)
+        await toPng(resultRef.current, { cacheBust: true, pixelRatio: 2 });
+        const dataUrl = await toPng(resultRef.current, { 
+          backgroundColor: '#ffffff', 
+          cacheBust: true,
+          pixelRatio: 2,
+          style: {
+            fontFamily: "'Zen Maru Gothic', sans-serif",
+            transform: 'scale(1)',
+          }
+        });
+        
+        setToastMessage('');
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         
         if (isMobile) {
@@ -415,7 +418,7 @@ export default function App() {
     }
   };
 
-      const handleCallPerson = (person: 'friend' | 'caterpillar' | 'darling') => {
+  const handleCallPerson = (person: 'friend' | 'caterpillar' | 'darling') => {
     setShowPhoneDialog(false);
     audio.playPhoneRing();
     setTimeout(() => {
@@ -435,7 +438,6 @@ export default function App() {
       ]);
     }, 1500);
   };
-
 
   const getBaseType = (currentScores: any) => {
     const getTop = (scoresObj: any, exclude: string[]) => {
@@ -479,30 +481,30 @@ export default function App() {
   };
 
   const handleStart = () => {
-    audio.init();
-    audio.toggleMute(false);
-    setIsMuted(false);
     setIsStarting(true);
+    
+    // 💡 Safariフリーズ対策：setTimeoutから出して即座に実行！
+    try {
+      audio.init();
+      audio.toggleMute(false);
+    } catch (e) {
+      console.error(e);
+    }
+    setIsMuted(false);
 
     const isMobileDevice = navigator.maxTouchPoints > 0;
 
-    if (!isMobileDevice) {
-      // PCのみ紙吹雪アニメーション
-      const duration = 2000;
-      const end = Date.now() + duration;
-      (function frame() {
-        confetti({ particleCount: 2, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#ffb7b2', '#e2f0cb', '#b5ead7', '#c7ceea'], shapes: ['circle'], scalar: 1.5 });
-        confetti({ particleCount: 2, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#ffb7b2', '#e2f0cb', '#b5ead7', '#c7ceea'], shapes: ['circle'], scalar: 1.5 });
-        if (Date.now() < end) requestAnimationFrame(frame);
-      }());
-    } else {
-      // モバイルは軽量な一発だけ
-      confetti({ particleCount: 30, spread: 70, origin: { y: 0.6 }, colors: ['#ffb7b2', '#e2f0cb', '#b5ead7', '#c7ceea'] });
-    }
+    setTimeout(() => {
+      if (!isMobileDevice) {
+        confetti({ particleCount: 25, spread: 60, origin: { y: 0.6 } });
+      } else {
+        confetti({ particleCount: 15, spread: 50, origin: { y: 0.6 } });
+      }
+    }, 100);
 
     setTimeout(() => {
       setStarted(true);
-    }, isMobileDevice ? 800 : 1500);
+    }, 600);
   };
 
   if (!started) {
@@ -519,7 +521,7 @@ export default function App() {
               className="glass-panel p-8 rounded-[2rem] max-w-sm w-full text-center border-2 border-white/80 relative overflow-hidden bg-white/60 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/40 before:to-transparent before:mix-blend-overlay before:pointer-events-none shadow-[0_8px_32px_rgba(255,192,203,0.2)]"
             >
               <button onClick={handleReset} className="absolute top-4 left-4 text-slate-400 z-10 hover:text-pink-500 transition-colors text-xs font-bold bg-white/50 px-2 py-1 rounded-full"><i className="fa-solid fa-rotate-right"></i></button>
-              {/* 通知バッジ */}
+              
               <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm text-xs font-bold text-slate-600 flex items-center gap-2 border border-white">
                 🐛 1件の未読
                 <span className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></span>
@@ -590,7 +592,6 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center relative px-4 py-8 overflow-y-auto">
         <MarbleBackground />
         <div className="flex flex-col items-center gap-6 w-full max-w-md">
-          {/* トースト通知 */}
         <AnimatePresence>
           {toastMessage && (
             <motion.div
@@ -604,7 +605,6 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* 解説ダイアログ */}
         {showExplanationDialog && (
           <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="glass-panel p-6 rounded-3xl text-left max-w-md w-full border border-white max-h-[80vh] overflow-y-auto">
@@ -622,10 +622,8 @@ export default function App() {
           </div>
         )}
 
-        {/* 画像保存モーダル */}
         {generatedImage && (
           <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex flex-col">
-            {/* 固定ヘッダー */}
             <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
               <p className="text-white font-bold text-sm bg-pink-500/80 px-4 py-2 rounded-full shadow-lg">
                 📱 画像を長押しして保存してください
@@ -637,7 +635,6 @@ export default function App() {
                 ✕
               </button>
             </div>
-            {/* スクロール可能なエリア */}
             <div className="flex-1 overflow-y-auto py-4 flex flex-col items-center">
               <img src={generatedImage} alt="診断結果" className="w-full max-w-sm rounded-[2rem] shadow-2xl border-4 border-white/50 mx-4" />
               <button
@@ -650,7 +647,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 保存用エリア */}
           <motion.div 
             ref={resultRef}
             initial={{ opacity: 0, y: 20 }}
@@ -664,49 +660,47 @@ export default function App() {
               <h2 className="text-xs font-bold tracking-widest text-slate-400 uppercase">Your Attitude Type</h2>
               <button onClick={handleReset} className="text-slate-400 hover:text-pink-500 transition-colors text-xs font-bold bg-white/50 px-3 py-1.5 rounded-full shadow-sm border border-white flex-shrink-0"><i className="fa-solid fa-rotate-right mr-1"></i>RESTART</button>
             </div>
-            <div className="text-6xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 tracking-wider drop-shadow-sm">
+            
+            <div className="text-6xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 tracking-wider drop-shadow-sm leading-none py-2">
               {resultType}
             </div>
             
             <div className="flex flex-col gap-2 mb-6 w-full font-bold">
+              {/* 💡 Safariの画像化対策で flex-shrink-0 と whitespace-nowrap を追加 */}
               <div className="glass p-3 rounded-2xl flex justify-between items-center px-6 border-t border-l border-white bg-white/60">
-                <div className="flex flex-col items-start">
-                  <span className="text-slate-400 text-[10px] tracking-widest leading-tight">1ST FUNCTION</span>
-                  <span className="text-slate-600 text-xs font-bold">Confident</span>
+                <div className="flex flex-col items-start flex-shrink-0">
+                  <span className="text-slate-400 text-[10px] tracking-widest leading-tight whitespace-nowrap">1ST FUNCTION</span>
+                  <span className="text-slate-600 text-xs font-bold whitespace-nowrap">Confident</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl text-slate-700 font-black">{resultType[0]}</span>
-                  
                 </div>
               </div>
               <div className="glass p-3 rounded-2xl flex justify-between items-center px-6 border-t border-l border-white bg-white/40">
-                <div className="flex flex-col items-start">
-                  <span className="text-slate-400 text-[10px] tracking-widest leading-tight">2ND FUNCTION</span>
-                  <span className="text-slate-600 text-xs font-bold">Flexible</span>
+                <div className="flex flex-col items-start flex-shrink-0">
+                  <span className="text-slate-400 text-[10px] tracking-widest leading-tight whitespace-nowrap">2ND FUNCTION</span>
+                  <span className="text-slate-600 text-xs font-bold whitespace-nowrap">Flexible</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl text-slate-700 font-black">{resultType[1]}</span>
-                  
                 </div>
               </div>
               <div className="glass p-3 rounded-2xl flex justify-between items-center px-6 border-t border-l border-white bg-white/20">
-                <div className="flex flex-col items-start">
-                  <span className="text-slate-400 text-[10px] tracking-widest leading-tight">3RD FUNCTION</span>
-                  <span className="text-slate-600 text-xs font-bold">Insecure</span>
+                <div className="flex flex-col items-start flex-shrink-0">
+                  <span className="text-slate-400 text-[10px] tracking-widest leading-tight whitespace-nowrap">3RD FUNCTION</span>
+                  <span className="text-slate-600 text-xs font-bold whitespace-nowrap">Insecure</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl text-slate-700 font-black">{resultType[2]}</span>
-                  
                 </div>
               </div>
               <div className="glass p-3 rounded-2xl flex justify-between items-center px-6 border-t border-l border-white bg-white/10">
-                <div className="flex flex-col items-start">
-                  <span className="text-slate-400 text-[10px] tracking-widest leading-tight">4TH FUNCTION</span>
-                  <span className="text-slate-600 text-xs font-bold">Unbothered</span>
+                <div className="flex flex-col items-start flex-shrink-0">
+                  <span className="text-slate-400 text-[10px] tracking-widest leading-tight whitespace-nowrap">4TH FUNCTION</span>
+                  <span className="text-slate-600 text-xs font-bold whitespace-nowrap">Unbothered</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl text-slate-700 font-black">{resultType[3]}</span>
-                  
                 </div>
               </div>
             </div>
@@ -715,13 +709,15 @@ export default function App() {
               Subtype: <span className="text-pink-500 tracking-widest">{resultType}-{subtype}</span>
             </div>
 
-            {/* L¹ V¹ F¹ E⁴ 形式のサブタイプ表示 */}
+            {/* 💡 判定結果のタイプの順番に合わせてサブタイプを描画 */}
             {(() => {
               const toSup = (n: number) => ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'][n] ?? String(n);
-              const as = calculateResult().alphabetSubtypes;
+              const res = calculateResult();
+              const as = res.alphabetSubtypes;
+              const typeArr = res.type.split('');
               return (
                 <div className="flex justify-center gap-3 mb-4 flex-wrap">
-                  {(['L','V','F','E'] as const).map(fn => {
+                  {typeArr.map(fn => {
                     const key = fn.toLowerCase() as 'l'|'v'|'f'|'e';
                     const d = as[key];
                     return (
@@ -747,8 +743,8 @@ export default function App() {
                 return (
                   <div key={pos} className="bg-white/60 p-3 rounded-xl border border-white">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="font-bold text-slate-700 text-sm">{titles[idx]}</span>
-                      <span className="text-[10px] font-bold text-slate-400">{subtitles[idx]}</span>
+                      <span className="font-bold text-slate-700 text-sm whitespace-nowrap">{titles[idx]}</span>
+                      <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{subtitles[idx]}</span>
                     </div>
                     
                     <div className="flex flex-col gap-1.5">
@@ -756,11 +752,12 @@ export default function App() {
                         const pct = data[i];
                         return (
                           <div key={func} className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                            <span className="w-4">{func}</span>
-                            <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
+                            {/* 💡 Safari画像化のレイアウト崩れ対策で flex-shrink-0 を追加 */}
+                            <span className="w-4 flex-shrink-0">{func}</span>
+                            <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden mx-1">
                               <div className="bg-blue-400 h-full rounded-full" style={{ width: `${pct}%` }}></div>
                             </div>
-                            <span className="w-8 text-right">{pct}%</span>
+                            <span className="w-8 text-right flex-shrink-0">{pct}%</span>
                           </div>
                         );
                       })}
@@ -780,7 +777,6 @@ export default function App() {
                <button onClick={handleSaveImage} className="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-pink-600">📸 画像保存</button>
             </div>
 
-          {/* 会話ログ */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -794,13 +790,12 @@ export default function App() {
               </button>
             </div>
             <div className="flex flex-col">
-              {messages.map(msg => (
-                <ChatBubble key={msg.id} message={msg} />
+              {messages.map((msg, index) => (
+                <ChatBubble key={`${msg.id}-${index}`} message={msg} />
               ))}
             </div>
           </motion.div>
 
-          {/* アクションボタン（画像には含まれない） */}
           <div className="flex flex-col gap-3 w-full mt-2">
             <motion.button
               whileTap={{ scale: 0.95 }}
@@ -856,7 +851,6 @@ export default function App() {
     );
   }
 
-  // チャット画面
   const isWaitingForInput = !isProcessingStep && !isTyping && messages.length > 0 && messages[messages.length - 1].sender !== 'user';
 
   return (
@@ -926,7 +920,6 @@ export default function App() {
     <span className="font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500 tracking-wide text-lg leading-tight">
       AP Simulator
     </span>
-    
   </div>
   <div className="flex gap-3 text-slate-400 text-lg items-center">
     {historyStack.length > 0 && (
@@ -949,10 +942,8 @@ export default function App() {
   </div>
 </header>
 
-        {/* Chat Area */}
         <div className="flex-1 px-4 py-6 relative">
           <AnimatePresence initial={false}>
-            {/* msg のあとに , index を追加して key を修正！ */}
             {messages.map((msg, index) => (
               <ChatBubble key={`${msg.id}-${index}`} message={msg} />
             ))}
@@ -961,7 +952,6 @@ export default function App() {
           <div ref={messagesEndRef} className="h-4" />
         </div>
 
-        {/* Input Area */}
         <div className="p-4 relative z-20 pb-8 bg-gradient-to-t from-white/90 via-white/70 to-transparent pt-8">
           {isWaitingForInput && currentStep ? (
             <Controls 
