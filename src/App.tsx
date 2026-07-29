@@ -14,6 +14,8 @@ import { audio } from './utils/audio';
 export default function App() {
   const [started, setStarted] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [cachedImageUrl, setCachedImageUrl] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [selfId, setSelfId] = useState('');
   const [toastMessage, setToastMessage] = useState('');
@@ -51,6 +53,7 @@ export default function App() {
         setDynamicSteps([]);
         setSubtypeScores([0,0,0,0]);
         setBaseTypeString("");
+        setCachedImageUrl(null);
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -340,7 +343,6 @@ export default function App() {
       return num.toString().split('').map(c => map[c] || c).join('');
     };
     
-    // 💡 判定されたタイプの順番通りにサブタイプ文字列を生成
     const typeArr = res.type.split('');
     const as = res.alphabetSubtypes;
     
@@ -383,38 +385,59 @@ export default function App() {
     window.location.reload();
   };
 
-  const handleSaveImage = async () => {
-    if (resultRef.current) {
-      try {
-        setToastMessage('画像生成中...🎨');
-        
-        await toPng(resultRef.current, { cacheBust: true, pixelRatio: 2 });
-        const dataUrl = await toPng(resultRef.current, { 
-          backgroundColor: '#ffffff', 
-          cacheBust: true,
-          pixelRatio: 2,
-          style: {
-            fontFamily: "'Zen Maru Gothic', sans-serif",
-            transform: 'scale(1)',
-          }
-        });
-        
-        setToastMessage('');
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-          setGeneratedImage(dataUrl);
-        } else {
-          const link = document.createElement('a');
-          link.download = `ap-result-${calculateResult().type}.png`;
-          link.href = dataUrl;
-          link.click();
+  // 💡 共通の画像生成処理（キャッシュ付き！）
+  const generateImageData = async () => {
+    if (cachedImageUrl) return cachedImageUrl; // 2回目以降は記憶した画像を返す
+    if (!resultRef.current) throw new Error("No ref");
+    
+    setIsGeneratingImage(true);
+    setToastMessage('画像生成中...🎨');
+    
+    try {
+      await toPng(resultRef.current, { cacheBust: true, pixelRatio: 2 });
+      const dataUrl = await toPng(resultRef.current, { 
+        backgroundColor: '#ffffff', 
+        cacheBust: true,
+        pixelRatio: 2,
+        style: {
+          fontFamily: "'Zen Maru Gothic', sans-serif",
+          transform: 'scale(1)',
         }
-      } catch (err) {
-        console.error('画像保存に失敗しました', err);
-        setToastMessage('画像保存に失敗しました😢');
-        setTimeout(() => setToastMessage(''), 3000);
-      }
+      });
+      setCachedImageUrl(dataUrl); // 作った画像を記憶する
+      setToastMessage('');
+      setIsGeneratingImage(false);
+      return dataUrl;
+    } catch (err) {
+      console.error('画像生成に失敗しました', err);
+      setIsGeneratingImage(false);
+      setToastMessage('画像生成に失敗しました😢');
+      throw err;
+    }
+  };
+
+  // 💡 スマホ用：長押しモーダル表示
+  const handleShowImageModal = async () => {
+    if (isGeneratingImage) return;
+    try {
+      const url = await generateImageData();
+      setGeneratedImage(url);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 💡 PC・ブラウザ用：直接ダウンロード
+  const handleDownloadImage = async () => {
+    if (isGeneratingImage) return;
+    try {
+      const url = await generateImageData();
+      const link = document.createElement('a');
+      link.download = `ap-result-${calculateResult().type}.png`;
+      link.href = url;
+      link.click();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -483,7 +506,6 @@ export default function App() {
   const handleStart = () => {
     setIsStarting(true);
     
-    // 💡 Safariフリーズ対策：setTimeoutから出して即座に実行！
     try {
       audio.init();
       audio.toggleMute(false);
@@ -544,7 +566,7 @@ export default function App() {
                   <li><strong>V (Volition):</strong> 意志・責任・方向性</li>
                   <li><strong>L (Logic):</strong> 論理・理由・理解</li>
                   <li><strong>E (Emotion):</strong> 感情・表現・関係</li>
-                  <li><strong>F (Physics):</strong> 身体・現実・環境</li>
+                  <li><strong>F (Physics/Foundation):</strong> 身体・現実・環境</li>
                 </ul>
               </div>
 
@@ -606,20 +628,99 @@ export default function App() {
         </AnimatePresence>
 
         {showExplanationDialog && (
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="glass-panel p-6 rounded-3xl text-left max-w-md w-full border border-white max-h-[80vh] overflow-y-auto">
-              <h3 className="text-xl font-bold text-slate-700 mb-4 border-b pb-2">APとサブタイプについて</h3>
-              <div className="text-sm text-slate-600 space-y-4 font-medium mb-6">
-                <p><strong>Attitudinal Psyche (AP)</strong>とは、人が様々な側面（論理、意志、感情、物質）に対してどのような態度を取るかを分析するシステムです。能力ではなく、「態度（スタンス）」に注目します。</p>
+            <h3 className="text-xl font-bold text-slate-700 mb-4 border-b pb-2">
+                APとサブタイプについて
+            </h3>
+
+            <div className="text-sm text-slate-600 space-y-4 font-medium mb-6">
+
+                <p>
+                <strong>Attitudinal Psyche（AP）</strong>とは、
+                人が様々な側面に対して「どのような態度を取りやすいか」を分析する類型論です。
+                </p>
+
+                <p>
+                能力や得意・不得意ではなく、
+                「自然と自信を持ちやすい」「人と共有しやすい」
+                「気になりやすい」「あまり意識しない」といった
+                <strong>態度（スタンス）</strong>に注目します。
+                </p>
+
                 <hr className="border-slate-200" />
+
+                <p><strong>4つの側面</strong></p>
+
+                <ul className="list-disc pl-5 space-y-1">
+                <li><strong>L（Logic）</strong>：論理・知識・分析・考え方</li>
+                <li><strong>V（Volition）</strong>：意志・目標・責任・決断</li>
+                <li><strong>F（Physics / Foundation）</strong>：身体・健康・生活・お金・物・快適さ</li>
+                <li><strong>E（Emotion）</strong>：感情・共感・雰囲気・感情表現</li>
+                </ul>
+
+                <hr className="border-slate-200" />
+
+                <p><strong>4つの態度</strong></p>
+
+                <ul className="list-disc pl-5 space-y-1">
+                <li><strong>1番目</strong>：自信があり、自分の基準を持ちやすい</li>
+                <li><strong>2番目</strong>：柔軟で、人と共有・協力しやすい</li>
+                <li><strong>3番目</strong>：気になりやすく、不安や葛藤を感じやすい</li>
+                <li><strong>4番目</strong>：執着が少なく、自然と他人に任せやすい</li>
+                </ul>
+
+                <p>
+                よく「4番目＝無関心だから気にならない」と説明されますが、
+                APでは<strong>「重要ではないので意識しない」「無意識に避けやすい」</strong>
+                という意味合いも含まれます。
+                </p>
+
+                <p>
+                そのため、第4機能は「何も感じない」のではなく、
+                深く向き合うこと自体を避けることで自然体を保っている場合があります。
+                </p>
+
+                <hr className="border-slate-200" />
+
                 <p><strong>Subtype（サブタイプ）とは？</strong></p>
-                <p>同じ「LVFE」でも、人によってどの機能が一番色濃く表れるかは少しずつ異なります。その違いを表したものがサブタイプです。</p>
-                <p>例えば LVFE-3 は、「3F（物理・身体・お金・生活）の特徴が比較的強く表れやすいLVFE」という意味になります。</p>
-                <p>タイプそのもの（LVFE）が変わるわけではありません。あくまで「同じLVFEの中でも、どこが目立ちやすいか」を示しています。</p>
-              </div>
-              <button onClick={() => setShowExplanationDialog(false)} className="w-full bg-slate-800 text-white py-3 rounded-full font-bold">閉じる</button>
+
+                <p>
+                同じ「LVFE」でも、
+                人によってどの機能が一番色濃く表れるかは少しずつ異なります。
+                </p>
+
+                <p>
+                その違いを表したものが<strong>サブタイプ</strong>です。
+                </p>
+
+                <p>
+                例えば
+                <strong>LVFE-3</strong>は、
+                「LVFEの中でも3F（物理）の特徴が特に強く表れやすい」
+                ことを意味します。
+                </p>
+
+                <p>
+                これはタイプ（LVFE）が変わるという意味ではありません。
+                あくまで<strong>同じタイプの中で、どの態度が最も濃く現れているか</strong>を表しています。
+                </p>
+
+                <p>
+                この診断では各機能ごとの回答傾向を分析し、
+                最も強く現れた態度をサブタイプとして表示しています。
+                </p>
+
             </div>
-          </div>
+
+            <button
+                onClick={() => setShowExplanationDialog(false)}
+                className="w-full bg-slate-800 text-white py-3 rounded-full font-bold"
+            >
+                閉じる
+            </button>
+            </div>
+        </div>
         )}
 
         {generatedImage && (
@@ -666,7 +767,6 @@ export default function App() {
             </div>
             
             <div className="flex flex-col gap-2 mb-6 w-full font-bold">
-              {/* 💡 Safariの画像化対策で flex-shrink-0 と whitespace-nowrap を追加 */}
               <div className="glass p-3 rounded-2xl flex justify-between items-center px-6 border-t border-l border-white bg-white/60">
                 <div className="flex flex-col items-start flex-shrink-0">
                   <span className="text-slate-400 text-[10px] tracking-widest leading-tight whitespace-nowrap">1ST FUNCTION</span>
@@ -709,7 +809,6 @@ export default function App() {
               Subtype: <span className="text-pink-500 tracking-widest">{resultType}-{subtype}</span>
             </div>
 
-            {/* 💡 判定結果のタイプの順番に合わせてサブタイプを描画 */}
             {(() => {
               const toSup = (n: number) => ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'][n] ?? String(n);
               const res = calculateResult();
@@ -752,7 +851,6 @@ export default function App() {
                         const pct = data[i];
                         return (
                           <div key={func} className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                            {/* 💡 Safari画像化のレイアウト崩れ対策で flex-shrink-0 を追加 */}
                             <span className="w-4 flex-shrink-0">{func}</span>
                             <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden mx-1">
                               <div className="bg-blue-400 h-full rounded-full" style={{ width: `${pct}%` }}></div>
@@ -774,7 +872,9 @@ export default function App() {
           
           <div className="flex gap-4 w-full mt-4">
                <button onClick={copyResult} className="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md hover:bg-slate-700">📋 結果をコピー</button>
-               <button onClick={handleSaveImage} className="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-pink-600">📸 画像保存</button>
+               <button onClick={handleShowImageModal} disabled={isGeneratingImage} className="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-pink-600 flex items-center justify-center">
+                 {isGeneratingImage ? <span className="animate-pulse">生成中...🎨</span> : "📸 長押しで保存"}
+               </button>
             </div>
 
           <motion.div 
@@ -800,18 +900,19 @@ export default function App() {
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowExplanationDialog(true)}
-              className="w-full glass py-4 rounded-full font-bold text-slate-700 shadow-sm border-2 border-white flex items-center justify-center mb-4 hover:bg-white/50"
+              className="w-full glass py-4 rounded-full font-bold text-slate-700 shadow-sm border-2 border-white flex items-center justify-center hover:bg-white/50"
             >
               <i className="fa-solid fa-book-open mr-2 text-blue-500"></i>
               各機能の詳しい解説を見る
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
-              onClick={handleSaveImage}
-              className="w-full glass py-4 rounded-full font-bold text-slate-700 shadow-sm border-2 border-white flex items-center justify-center"
+              onClick={handleDownloadImage}
+              disabled={isGeneratingImage}
+              className={`w-full glass py-4 rounded-full font-bold text-slate-700 shadow-sm border-2 border-white flex items-center justify-center ${isGeneratingImage ? 'opacity-50' : 'hover:bg-white/50'}`}
             >
               <i className="fa-solid fa-download mr-2 text-blue-500"></i>
-              結果を画像として保存
+              画像を直接ダウンロード
             </motion.button>
             
             <motion.button
@@ -831,7 +932,7 @@ export default function App() {
                   alert('シェア機能がサポートされていません');
                 }
               }}
-              className="w-full glass py-4 rounded-full font-bold text-slate-700 shadow-sm border-2 border-white flex items-center justify-center"
+              className="w-full glass py-4 rounded-full font-bold text-slate-700 shadow-sm border-2 border-white flex items-center justify-center hover:bg-white/50"
             >
               <i className="fa-solid fa-share-nodes mr-2 text-pink-500"></i>
               結果をシェアする
