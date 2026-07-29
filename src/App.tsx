@@ -430,24 +430,33 @@ export default function App() {
   // 💡 スマホの時はダウンロードボタンを押しても長押し保存モーダルを開くように修正！
   const handleDownloadImage = async () => {
     if (isGeneratingImage) return;
-    
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      handleShowImageModal();
-      return;
-    }
 
     try {
       const url = await generateImageData();
+      
+      // 💡 iPhoneでもダウンロード成功率を上げるため、画像データをちゃんとしたファイル(Blob)に変換！
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
       const link = document.createElement('a');
       link.download = `ap-result-${calculateResult().type}.png`;
-      link.href = url;
+      link.href = blobUrl;
+      
+      // 念のため画面の裏側に一瞬だけリンクをくっつけてからクリックさせる
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      
+      // 使い終わったURLを掃除
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
     } catch (err) {
       console.error(err);
+      setToastMessage('ダウンロードに失敗しました😢');
+      setTimeout(() => setToastMessage(''), 3000);
     }
   };
-
+  
   const handleCallPerson = (person: 'friend' | 'caterpillar' | 'darling') => {
     setShowPhoneDialog(false);
     audio.playPhoneRing();
