@@ -510,9 +510,12 @@ export default function App() {
     audio.playPop();
   };
 
-  const handleStart = () => {
-    setIsStarting(true);
+const handleStart = () => {
+    // 💡 待たずに即座に画面を切り替えてローディングを開始！
+    setStarted(true);
+    setIsConnecting(true);
     
+    // サウンド初期化（タップ直後じゃないとSafariでブロックされるため）
     try {
       audio.init();
       audio.toggleMute(false);
@@ -523,21 +526,19 @@ export default function App() {
 
     const isMobileDevice = navigator.maxTouchPoints > 0;
 
+    // 💡 画面が切り替わった直後に紙吹雪を飛ばす
     setTimeout(() => {
       if (!isMobileDevice) {
         confetti({ particleCount: 25, spread: 60, origin: { y: 0.6 } });
       } else {
         confetti({ particleCount: 15, spread: 50, origin: { y: 0.6 } });
       }
-    }, 100);
+    }, 50);
 
+    // 💡 1.2秒後にロードを解除してチャット開始
     setTimeout(() => {
-      setStarted(true);
-      setIsConnecting(true); // 💡 ロード開始
-      setTimeout(() => {
-        setIsConnecting(false); // 💡 1.2秒後にロード解除してチャット開始
-      }, 1200);
-    }, 600);
+      setIsConnecting(false);
+    }, 1200);
   };
 
   if (!started) {
