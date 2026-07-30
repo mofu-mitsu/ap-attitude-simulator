@@ -191,9 +191,9 @@ export const scenario: ScenarioStep[] = [
     ],
     inputType: 'posture-check',
     options: [
-      { label: '部屋は綺麗だし、姿勢も良い', scores: { third: { v: 2, f: 1 } } },
+      { label: '部屋は綺麗だし、姿勢も良い', scores: { first: { v: 1, f: 2 } } },
       { label: '見ないでほしい', scores: { third: { f: 2, e: 1 } } },
-      { label: 'めんどくさいしやだよー', scores: { third: { f: 2 }, fourth: { f: 2 } } },
+      { label: 'めんどくさいしやだよー', scores: { third: { f: 1 }, fourth: { f: 2 } } },
     ]
   },
   {
@@ -412,6 +412,7 @@ export const scenario: ScenarioStep[] = [
     options: [
       { label: '「冷たいね」「ロボットみたい」', scores: { third: { e: 2 } } },
       { label: '「なんでそんなことで泣くの？」', scores: { third: { e: 2 } } },
+      { label: '「優柔不断だね」「自分で決めなよ」', scores: { third: { v: 2 } } },
       { label: '「頭固いね」「理屈っぽい」', scores: { third: { l: 2 } } },
       { label: '「だらしないね」「現実見なよ」', scores: { third: { f: 2 } } }
     ]
