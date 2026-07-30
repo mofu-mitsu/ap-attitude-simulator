@@ -105,7 +105,7 @@ export const scenario: ScenarioStep[] = [
     options: [
       { label: '面白い。私なら〇〇かな。', scores: { first: { l: 2 } } },
       { label: 'そういう考えもあるね。', scores: { fourth: { e: 2 } } },
-      { label: 'え、難しいwww', scores: { fourth: { e: 1 } } },
+      { label: 'え、難しいwww', scores: { fourth: { l: 1 } } },
       { label: '🐛スタンプを送る', scores: { first: { v: 2, f: 2 } }, metadata: { isStamp: true, stampText: '🐛' } },
       { label: '( ˙꒳˙ )ﾁｮﾄﾅﾆｲｯﾃﾙｶﾜｶﾝﾅｲ', scores: { fourth: { f: 2 } }, metadata: { isStamp: true, stampText: '( ˙꒳˙ )' } },
     ]

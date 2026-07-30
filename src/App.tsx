@@ -395,11 +395,20 @@ export default function App() {
     setToastMessage('画像生成中...🎨');
     
     try {
-      await toPng(resultRef.current, { cacheBust: true, pixelRatio: 2 });
+      // 💡 Androidのモザイクバグ対策：ぼかし系の装飾を画像化する時に除外するフィルター
+      const filter = (node: HTMLElement | any) => {
+        if (node?.classList && node.classList.contains('hide-on-capture')) {
+          return false;
+        }
+        return true;
+      };
+
+      await toPng(resultRef.current, { cacheBust: true, pixelRatio: 2, filter });
       const dataUrl = await toPng(resultRef.current, { 
         backgroundColor: '#ffffff', 
         cacheBust: true,
         pixelRatio: 2,
+        filter,
         style: {
           fontFamily: "'Zen Maru Gothic', sans-serif",
           transform: 'scale(1)',
@@ -773,8 +782,8 @@ const handleStart = () => {
             animate={{ opacity: 1, y: 0 }}
             className="glass-panel p-6 rounded-[2rem] w-full text-center border-2 border-white/80 relative"
           >
-            <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-pink-300/40 rounded-full blur-[30px] pointer-events-none"></div>
-            <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-cyan-300/40 rounded-full blur-[30px] pointer-events-none"></div>
+            <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-pink-300/40 rounded-full blur-[30px] pointer-events-none hide-on-capture"></div>
+            <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-cyan-300/40 rounded-full blur-[30px] pointer-events-none hide-on-capture"></div>
 
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-xs font-bold tracking-widest text-slate-400 uppercase">Your Attitude Type</h2>
