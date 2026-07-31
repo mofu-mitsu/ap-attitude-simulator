@@ -394,6 +394,9 @@ export default function App() {
     setIsGeneratingImage(true);
     setToastMessage('画像生成中...🎨');
     
+    // 💡 Androidモザイク対策: キャプチャ時のみbackdrop-filterを無効化するクラスを付与
+    resultRef.current.classList.add('capture-mode');
+
     try {
       // 💡 Androidのモザイクバグ対策：ぼかし系の装飾を画像化する時に除外するフィルター
       const filter = (node: HTMLElement | any) => {
@@ -416,10 +419,13 @@ export default function App() {
       });
       setCachedImageUrl(dataUrl);
       setToastMessage('');
+      
+      resultRef.current.classList.remove('capture-mode');
       setIsGeneratingImage(false);
       return dataUrl;
     } catch (err) {
       console.error('画像生成に失敗しました', err);
+      if (resultRef.current) resultRef.current.classList.remove('capture-mode');
       setIsGeneratingImage(false);
       setToastMessage('画像生成に失敗しました😢');
       throw err;
@@ -488,27 +494,56 @@ export default function App() {
   };
 
   const getBaseType = (currentScores: any) => {
-    const getTop = (scoresObj: any, exclude: string[]) => {
-      let max = -1;
-      let top = '';
-      for (const [k, v] of Object.entries(scoresObj || {})) {
-        if (!exclude.includes(k) && (v as number) > max) {
-          max = (v as number);
-          top = k;
+    const posKeys = ['first', 'second', 'third', 'fourth'];
+    const posPercents: Record<string, any> = {};
+    posKeys.forEach(pos => {
+      const funcScores = [
+        currentScores?.[pos]?.v || 0,
+        currentScores?.[pos]?.l || 0,
+        currentScores?.[pos]?.f || 0,
+        currentScores?.[pos]?.e || 0
+      ];
+      const total = funcScores.reduce((a, b) => a + b, 0);
+      posPercents[pos] = total > 0 ? {
+        v: (funcScores[0] / total) * 100,
+        l: (funcScores[1] / total) * 100,
+        f: (funcScores[2] / total) * 100,
+        e: (funcScores[3] / total) * 100,
+      } : { v: 0, l: 0, f: 0, e: 0 };
+    });
+
+    const permute = (arr: string[]): string[][] => {
+      if (arr.length === 1) return [arr];
+      const result: string[][] = [];
+      for (let i = 0; i < arr.length; i++) {
+        const current = arr[i];
+        const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
+        const remainingPermuted = permute(remaining);
+        for (let j = 0; j < remainingPermuted.length; j++) {
+          result.push([current].concat(remainingPermuted[j]));
         }
       }
-      if (max === -1 || !top) {
-        for (const k of ['v', 'l', 'e', 'f']) {
-          if (!exclude.includes(k)) return k;
-        }
-      }
-      return top;
+      return result;
     };
-    const f1 = getTop(currentScores.first, []);
-    const f2 = getTop(currentScores.second, [f1]);
-    const f3 = getTop(currentScores.third, [f1, f2]);
-    const f4 = getTop(currentScores.fourth, [f1, f2, f3]);
-    return `${f1.toUpperCase()}${f2.toUpperCase()}${f3.toUpperCase()}${f4.toUpperCase()}`;
+
+    let bestType = '';
+    let maxTotal = -1;
+    const allTypes = permute(['v', 'l', 'f', 'e']);
+
+    for (const type of allTypes) {
+      const total = 
+        posPercents.first[type[0]] +
+        posPercents.second[type[1]] +
+        posPercents.third[type[2]] +
+        posPercents.fourth[type[3]];
+      
+      if (total > maxTotal) {
+        maxTotal = total;
+        bestType = type.join('').toUpperCase();
+      }
+    }
+    
+    return bestType || 'VLFE';
   };
 
   const handleUndo = () => {
@@ -833,8 +868,11 @@ const handleStart = () => {
               </div>
             </div>
             
-            <div className="text-center font-bold text-slate-700 text-lg mb-4 bg-white/50 py-2 rounded-xl shadow-sm border border-white">
-              Subtype: <span className="text-pink-500 tracking-widest">{resultType}-{subtype}</span>
+            <div className="relative z-10 flex justify-center items-center font-bold text-slate-700 text-lg mb-4 bg-white/50 py-2 rounded-xl shadow-sm border border-white">
+              <span className="whitespace-nowrap flex-shrink-0">Subtype:</span>
+              <span className="text-pink-500 tracking-widest whitespace-nowrap flex-shrink-0 ml-2">
+                {resultType}-{subtype}
+              </span>
             </div>
 
             {(() => {
@@ -843,14 +881,14 @@ const handleStart = () => {
               const as = res.alphabetSubtypes;
               const typeArr = res.type.split('');
               return (
-                <div className="flex justify-center gap-3 mb-4 flex-wrap">
+                <div className="relative z-10 flex justify-center gap-3 mb-4 flex-wrap">
                   {typeArr.map(fn => {
                     const key = fn.toLowerCase() as 'l'|'v'|'f'|'e';
                     const d = as[key];
                     return (
-                      <div key={fn} className="bg-white/70 rounded-xl px-3 py-2 text-center shadow-sm border border-white min-w-[52px]">
-                        <div className="text-xl font-black text-slate-700">{fn}{toSup(d.topAttitude)}</div>
-                        <div className="text-[10px] font-bold text-slate-400">{d.percentages[d.topAttitude-1]}%</div>
+                      <div key={fn} className="bg-white/70 rounded-xl px-3 py-2 text-center shadow-sm border border-white min-w-[52px] flex-shrink-0">
+                        <div className="text-xl font-black text-slate-700 whitespace-nowrap">{fn}{toSup(d.topAttitude)}</div>
+                        <div className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{d.percentages[d.topAttitude-1]}%</div>
                       </div>
                     );
                   })}

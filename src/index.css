@@ -86,3 +86,9 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* 画像化時のモザイク・描画バグを防ぐため、一時的にブラーを全て無効化する */
+.capture-mode, .capture-mode * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
